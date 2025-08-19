@@ -1,33 +1,39 @@
-import { Client, GatewayIntentBits } from "discord.js";
-import express from "express";
+require('dotenv').config();
 
-// --- Servidor Express para UptimeRobot ---
-const app = express();
-app.get("/", (req, res) => {
-  res.send("Bot está activo 🚀");
-});
-app.listen(3000, () => console.log("Servidor web en puerto 3000"));
+const { Client, GatewayIntentBits } = require('discord.js');
 
-// --- Configuración del cliente de Discord ---
+// Crear cliente con los intents necesarios
 const client = new Client({
-  intents: [
-    GatewayIntentBits.Guilds, 
-    GatewayIntentBits.GuildMessages,
-    GatewayIntentBits.MessageContent
-  ]
+    intents: [
+        GatewayIntentBits.Guilds,
+        GatewayIntentBits.GuildMessages,
+        GatewayIntentBits.MessageContent
+    ]
 });
 
-// Evento cuando el bot se conecta
-client.once("ready", () => {
-  console.log(`Conectado como ${client.user.tag}`);
+// Tomar el token desde el .env
+const TOKEN = process.env.DISCORD_TOKEN;
+
+if (!TOKEN) {
+    console.error("❌ No se encontró DISCORD_TOKEN en el archivo .env");
+    process.exit(1);
+}
+
+// Evento cuando el bot esté listo
+client.once('ready', () => {
+    console.log(`✅ Bot listo! Conectado como ${client.user.tag}`);
 });
 
-// Respuesta a mensajes
-client.on("messageCreate", (msg) => {
-  if (msg.content === "!ping") {
-    msg.reply("🏓 Pong!");
-  }
+// Escuchar mensajes
+client.on('messageCreate', message => {
+    // Ignorar mensajes de otros bots
+    if (message.author.bot) return;
+
+    // Comando simple: !hola
+    if (message.content === '!hola') {
+        message.channel.send('¡Hola! 👋');
+    }
 });
 
-// Iniciar sesión con token
-client.login(process.env.TOKEN);
+// Iniciar sesión con el token
+client.login(TOKEN);
