@@ -314,16 +314,14 @@ if (interaction.isButton()) {
       modal.addComponents(new ActionRowBuilder().addComponents(input));
       await interaction.showModal(modal);
     } else if (accion === 'desconectar') {
-      await interaction.deferUpdate();
       const coste = 1;
-      
       if (db[userId] < coste) {
-      // Responder de forma ephemeral sin error
+      // Respuesta ephemeral sin deferUpdate
         await interaction.reply({ content: `❌ No tienes suficientes tokens.`, flags: 64 });
         return;
       }
 
-     // Para confirmar desconexión y actualizar el mensaje original:
+     // Si el usuario tiene tokens, aplicamos efecto y actualizamos mensaje original
      await aplicarEfecto(miembro, 'desconectar');
      await interaction.update({ content: `✅ ${miembro.user.tag} ha sido desconectado`, components: [] });
 
