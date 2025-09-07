@@ -276,40 +276,40 @@ client.on('interactionCreate', async interaction => {
       }
       
 // -------------------- Botón Reclamar Tokens --------------------
-if (interaction.isButton() && interaction.customId.startsWith('claim_tokens_')) {
-  try {
-    const cantidad = parseInt(interaction.customId.split('_')[2]) || 0;
+     if (interaction.isButton() && interaction.customId.startsWith('claim_tokens_')) {
+       try {
+       const cantidad = parseInt(interaction.customId.split('_')[2]) || 0;
 
-    // Sumar tokens al usuario
-    await changeTokens(interaction.user.id, cantidad);
+        // Sumar tokens al usuario
+        await changeTokens(interaction.user.id, cantidad);
 
-    // Confirmación efímera al usuario
-    await safeReply(interaction, {
-      content: `✅ Has reclamado **${cantidad} tokens**. Ahora tienes ${await getTokens(interaction.user.id)} tokens.`,
-      flags: EPHEMERAL
-    });
+        // Confirmación efímera al usuario
+        await safeReply(interaction, {
+           content: `✅ Has reclamado **${cantidad} tokens**. Ahora tienes ${await getTokens(interaction.user.id)} tokens.`,
+           flags: EPHEMERAL
+        });
 
     // Anuncio en el canal
-    if (interaction.channel) {
-      await interaction.channel.send(
-        `💰 **${interaction.user.username}** ha reclamado **${cantidad} tokens**!`
-      );
-    }
+     if (interaction.channel) {
+       await interaction.channel.send(
+         `💰 **${interaction.user.username}** ha reclamado **${cantidad} tokens**!`
+       );
+     }
 
-    // Desactivar botón (si existe)
-    if (interaction.message?.components?.length) {
-      const row = ActionRowBuilder.from(interaction.message.components[0]);
-      row.components[0].setDisabled(true);
-      await interaction.message.edit({ components: [row] });
-    }
-  } catch (err) {
-    console.error('Error al reclamar tokens:', err);
-    await safeReply(interaction, {
+     // Desactivar botón (si existe)
+     if (interaction.message?.components?.length) {
+       const row = ActionRowBuilder.from(interaction.message.components[0]);
+       row.components[0].setDisabled(true);
+       await interaction.message.edit({ components: [row] });
+     }
+   } catch (err) {
+     console.error('Error al reclamar tokens:', err);
+     await safeReply(interaction, {
       content: '❌ Error al reclamar tokens.',
       flags: EPHEMERAL
-    });
-  }
-}
+     });
+   }
+ }
 
     // -------------------- Selecciones --------------------
     if (interaction.isStringSelectMenu() && interaction.customId === 'select_member') {
