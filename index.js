@@ -24,14 +24,6 @@ const ADMIN_PASSWORD = "germangey";
 
 ////////////////////////////////////////////WEB///////////////////////////////////////////////////////////
 
-const express = require('express');
-const app = express();
-
-const PORT = process.env.PORT || 3000; // Render asigna el puerto automáticamente
-const HOST = '0.0.0.0';
-const path = require('path');
-
-// Servir archivos estáticos desde la carpeta public
 const app = express();
 const PORT = process.env.PORT || 3000;
 const HOST = '0.0.0.0';
