@@ -27,8 +27,8 @@ const ADMIN_PASSWORD = "germangey";
 const express = require('express');
 const app = express();
 
-const PORT = 6250; // el puerto que te asignó tu host
-const HOST = '0.0.0.0'; // importante para aceptar conexiones externas
+const PORT = process.env.PORT || 3000; // Render asigna el puerto automáticamente
+const HOST = '0.0.0.0';
 const path = require('path');
 
 // Servir archivos estáticos desde la carpeta public
@@ -112,7 +112,7 @@ app.post('/send-tokens', async (req, res) => {
 
 app.listen(PORT, HOST, () => {
   console.log(`Servidor corriendo en http://${HOST}:${PORT}`);
-});
+})
 
 ////////////////////////////////////////////BOT///////////////////////////////////////////////////////////
 
