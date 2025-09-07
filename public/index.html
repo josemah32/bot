@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>La web del bot abusador</title>
+<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="192x192" href="/favicon-96x96.png">
+<link rel="icon" type="image/png" sizes="512x512" href="/favicon-512x512.png">
+<link rel="manifest" href="/site.webmanifest">
+<link rel="shortcut icon" href="/favicon.ico">
+<style>
+body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  margin:0;
+  min-height:100vh;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  background: linear-gradient(to right, #74ebd5, #ACB6E5);
+}
+.container {
+  background:white;
+  padding:30px;
+  border-radius:15px;
+  box-shadow:0 8px 20px rgba(0,0,0,0.3);
+  width:90%;
+  max-width:500px;
+  text-align:center;
+}
+h1, h2 { margin-bottom:20px; }
+button { 
+  padding:10px 20px; 
+  border:none; 
+  border-radius:8px; 
+  background:#007BFF; 
+  color:white; 
+  cursor:pointer;
+  font-size:1rem;
+  margin-top:15px;
+}
+button:hover { background:#0056b3; }
+input { padding:10px; width:80%; border-radius:8px; border:1px solid #ccc; margin-bottom:15px; }
+#adminSection { display:none; }
+#error { color:red; display:none; margin-top:10px; }
+</style>
+</head>
+<body>
+
+<div class="container" id="mainSection">
+  <img src="logo.png" alt="Logo" 
+     style="width:150px; margin-bottom:20px; border-radius:50%;">
+  <h1>Admin abuse web</h1>
+  <p>¿Será que esta página web funcionará algún día? Inténtalo ⬇️</p>
+  <button onclick="showAdminLogin()">Acceder Admin</button>
+  <button onclick="goToService()">Ir al Servicio</button>
+</div>
+
+<div class="container" id="adminSection">
+  <h2>Login Admin</h2>
+  <input type="password" id="adminPass" placeholder="Contraseña">
+  <br>
+  <button onclick="checkAdmin()">Entrar</button>
+  <div id="error">❌ Contraseña incorrecta</div>
+  <button onclick="goBack()" style="background:#6c757d;">⬅ Volver</button>
+</div>
+
+<script>
+const ADMIN_PASSWORD = "germangey";
+const SERVICE_URL = "http://1.2.3.4:1234"; // Cambia aquí a tu IP y puerto
+
+function showAdminLogin() {
+  document.getElementById('mainSection').style.display = 'none';
+  document.getElementById('adminSection').style.display = 'block';
+}
+
+function goBack() {
+  document.getElementById('adminSection').style.display = 'none';
+  document.getElementById('mainSection').style.display = 'block';
+  document.getElementById('adminPass').value = '';
+  document.getElementById('error').style.display = 'none';
+}
+
+function checkAdmin() {
+  const pass = document.getElementById('adminPass').value;
+  if(pass === ADMIN_PASSWORD) {
+    window.location.href = `/admin?pass=${encodeURIComponent(pass)}`;
+  } else {
+    document.getElementById('error').style.display = 'block';
+  }
+}
+
+// Función para redirigir al servicio
+function goToService() {
+  window.location.href = SERVICE_URL;
+}
+</script>
+
+</body>
+</html>

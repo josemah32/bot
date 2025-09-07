@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Panel Admin</title>
+<style>
+body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background: linear-gradient(to right, #74ebd5, #ACB6E5);
+  min-height: 100vh;
+  margin:0;
+  display:flex;
+  justify-content:center;
+  align-items:flex-start;
+  padding:30px 0;
+}
+
+.container {
+  background:white;
+  padding:30px;
+  border-radius:15px;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+  width:90%;
+  max-width:600px;
+}
+
+h2 { text-align:center; margin-bottom:20px; color:#333; }
+
+input, textarea, button {
+  width:100%;
+  padding:10px;
+  margin-bottom:15px;
+  border-radius:8px;
+  border:1px solid #ccc;
+  font-size:1rem;
+}
+
+textarea { resize:none; height:80px; }
+
+button {
+  background:#007BFF;
+  color:white;
+  border:none;
+  cursor:pointer;
+  transition:0.2s;
+}
+
+button:hover { background:#0056b3; }
+
+.field { display:flex; gap:10px; margin-bottom:10px; }
+.field input { flex:1; }
+
+hr { margin:30px 0; }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <h2>Crear Embed</h2>
+  <form id="embedForm">
+    <input type="text" id="embedChannel" placeholder="ID del canal donde enviar">
+    <input type="text" placeholder="Título" id="embedTitle">
+    <textarea placeholder="Descripción" id="embedDescription"></textarea>
+    <input type="color" id="embedColor" value="#0099ff">
+    <input type="text" placeholder="URL Imagen" id="embedImage">
+    <input type="text" placeholder="URL Miniatura" id="embedThumbnail">
+    <input type="text" placeholder="Autor" id="embedAuthor">
+    <input type="text" placeholder="Pie de página" id="embedFooter">
+
+    <div id="fieldsContainer">
+      <h3>Campos (Fields)</h3>
+      <div class="field">
+        <input type="text" placeholder="Nombre campo" class="fieldName">
+        <input type="text" placeholder="Valor campo" class="fieldValue">
+      </div>
+    </div>
+    <button type="button" onclick="addField()">Agregar campo</button>
+    <button type="submit">Enviar Embed</button>
+  </form>
+
+  <hr>
+
+  <h2>Enviar Mensaje de Tokens</h2>
+  <form id="tokensForm">
+    <input type="number" id="cantidadTokens" placeholder="Cantidad de tokens">
+    <input type="text" id="canalTokens" placeholder="ID del canal donde enviar">
+    <input type="text" id="mensajeTokens" placeholder="Mensaje opcional">
+    <button type="submit">Enviar Mensaje de Tokens</button>
+  </form>
+    <button type="button" onclick="window.location.href='index.html'" 
+        style="margin-top:20px; width:100%; padding:12px; font-size:1rem; border:none; border-radius:8px; background:#6c757d; color:white; cursor:pointer; transition:0.2s;">
+  ⬅ Volver
+</button>
+</div>
+
+<script>
+function addField() {
+  const container = document.getElementById('fieldsContainer');
+  const div = document.createElement('div');
+  div.className = 'field';
+  div.innerHTML = `<input type="text" placeholder="Nombre campo" class="fieldName">
+                   <input type="text" placeholder="Valor campo" class="fieldValue">`;
+  container.appendChild(div);
+}
+
+document.getElementById('embedForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  const embedData = {
+    channelId: document.getElementById('embedChannel').value,
+    title: document.getElementById('embedTitle').value,
+    description: document.getElementById('embedDescription').value,
+    color: document.getElementById('embedColor').value,
+    image: document.getElementById('embedImage').value,
+    thumbnail: document.getElementById('embedThumbnail').value,
+    author: document.getElementById('embedAuthor').value,
+    footer: document.getElementById('embedFooter').value,
+    fields: []
+  };
+  document.querySelectorAll('.field').forEach(div => {
+    const name = div.querySelector('.fieldName').value;
+    const value = div.querySelector('.fieldValue').value;
+    if(name && value) embedData.fields.push({name, value});
+  });
+
+  const res = await fetch('/send-embed', {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify(embedData)
+  });
+  if(res.ok) alert('Embed enviado!');
+  else alert('Error al enviar embed');
+});
+
+document.getElementById('tokensForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  const data = {
+    cantidad: parseFloat(document.getElementById('cantidadTokens').value),
+    canalId: document.getElementById('canalTokens').value,
+    mensaje: document.getElementById('mensajeTokens').value
+  };
+  const res = await fetch('/send-tokens', {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify(data)
+  });
+  if(res.ok) alert('Mensaje de tokens enviado!');
+  else alert('Error al enviar mensaje');
+});
+</script>
+
+</body>
+</html>

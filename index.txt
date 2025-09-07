@@ -1,0 +1,218 @@
+require('dotenv').config();
+const fs = require('fs');
+const {
+  Client,
+  GatewayIntentBits,
+  REST,
+  Routes,
+  SlashCommandBuilder,
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
+  StringSelectMenuBuilder,
+  ModalBuilder,
+  TextInputBuilder,
+  TextInputStyle
+} = require('discord.js');
+
+const TOKEN = process.env.DISCORD_TOKEN;
+const CLIENT_ID = process.env.CLIENT_ID;
+const GUILD_ID = process.env.GUILD_ID;
+
+let db = {};
+const DB_FILE = './db.json';
+if (fs.existsSync(DB_FILE)) db = JSON.parse(fs.readFileSync(DB_FILE));
+function saveDB() { fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2)); }
+
+// Client
+const client = new Client({
+  intents: [
+    GatewayIntentBits.Guilds,
+    GatewayIntentBits.GuildMessages,
+    GatewayIntentBits.GuildVoiceStates,
+    GatewayIntentBits.GuildMembers
+  ]
+});
+
+// Comandos /admin y /tokens
+const commands = [
+  new SlashCommandBuilder()
+    .setName('admin')
+    .setDescription('Usa tus tokens para hacer acciones temporales sobre otros usuarios')
+    .toJSON(),
+  new SlashCommandBuilder()
+    .setName('tokens')
+    .setDescription('Muestra tus tokens')
+    .toJSON()
+];
+
+const rest = new REST({ version: '10' }).setToken(TOKEN);
+(async () => {
+  await rest.put(Routes.applicationGuildCommands(CLIENT_ID, GUILD_ID), { body: commands });
+})();
+
+// Contador de mensajes -> tokens
+client.on('messageCreate', message => {
+  if (message.author.bot) return;
+  const id = message.author.id;
+  if (!db[id]) db[id] = 0;
+  db[id] += 1;
+  saveDB();
+});
+
+// Función para aplicar efectos
+async function aplicarEfecto(member, efecto, duracion = 30000) {
+  try {
+    if (!member.voice.channel) return;
+    switch (efecto) {
+      case 'silenciar':
+        await member.voice.setMute(true);
+        setTimeout(() => member.voice.setMute(false), duracion);
+        break;
+      case 'ensordecer':
+        await member.voice.setDeaf(true);
+        setTimeout(() => member.voice.setDeaf(false), duracion);
+        break;
+      case 'desconectar':
+        const canalOriginal = member.voice.channel;
+        await member.voice.disconnect("Admin temporal");
+        setTimeout(async () => {
+          try { await member.voice.setChannel(canalOriginal); } catch {}
+        }, duracion);
+        break;
+      case 'aislar':
+        const canalAislado = member.guild.channels.cache.find(c => c.name === 'Aislado' && c.isVoiceBased());
+        if (!canalAislado) return;
+        const canalOriginal2 = member.voice.channel;
+        await member.voice.setChannel(canalAislado);
+        setTimeout(async () => {
+          try { await member.voice.setChannel(canalOriginal2); } catch {}
+        }, duracion);
+        break;
+    }
+  } catch (err) { console.error('Error aplicando efecto:', err); }
+}
+
+// Comando /tokens y /admin
+client.on('interactionCreate', async interaction => {
+  if (interaction.isChatInputCommand()) {
+    const userId = interaction.user.id;
+
+    if (interaction.commandName === 'tokens') {
+      const tokens = db[userId] || 0;
+      return interaction.reply({ content: `💰 Tienes ${tokens} tokens.`, ephemeral: true });
+    }
+
+    if (interaction.commandName === 'admin') {
+      if (!db[userId] || db[userId] < 1) {
+        return interaction.reply({ content: '❌ Necesitas al menos 1 token para usar admin.', ephemeral: true });
+      }
+
+      await interaction.guild.members.fetch();
+      const miembrosVC = interaction.guild.members.cache.filter(m => m.voice.channel && m.id !== userId);
+
+      if (!miembrosVC.size) return interaction.reply({ content: '❌ No hay miembros en canales de voz.', ephemeral: true });
+
+      const select = new StringSelectMenuBuilder()
+        .setCustomId('select_member')
+        .setPlaceholder('Selecciona un usuario')
+        .addOptions(miembrosVC.map(m => ({ label: m.user.username, value: m.id })));
+
+      const menu = new ActionRowBuilder().addComponents(select);
+      return interaction.reply({ content: 'Selecciona un usuario para aplicar acción:', components: [menu], ephemeral: true });
+    }
+  }
+
+  // Select Menu
+  if (interaction.isStringSelectMenu() && interaction.customId === 'select_member') {
+    await interaction.deferUpdate();
+
+    const userId = interaction.user.id;
+    const targetId = interaction.values[0];
+    const miembro = interaction.guild.members.cache.get(targetId);
+    if (!miembro || !miembro.voice.channel) return interaction.followUp({ content: '❌ Usuario no válido o no está en VC.', ephemeral: true });
+
+    const acciones = ['silenciar','ensordecer','desconectar','aislar'];
+    const botones = new ActionRowBuilder().addComponents(
+      acciones.map(a => new ButtonBuilder()
+        .setCustomId(`accion_${a}_${targetId}`)
+        .setLabel(a.charAt(0).toUpperCase() + a.slice(1))
+        .setStyle(ButtonStyle.Primary)
+      )
+    );
+    return interaction.followUp({ content: `Usuario seleccionado: ${miembro.user.tag}. Elige acción:`, components: [botones], ephemeral: true });
+  }
+
+  // Botones y confirmaciones
+  if (interaction.isButton()) {
+    const userId = interaction.user.id;
+
+    // Confirmar acciones
+    if (interaction.customId.startsWith('confirmar_')) {
+      const parts = interaction.customId.split('_');
+      const accion = parts[1];
+      const targetId = parts[2];
+      const tiempo = parts[3] ? parseInt(parts[3]) : 0;
+      const miembro = interaction.guild.members.cache.get(targetId);
+      if (!miembro || !miembro.voice.channel) return interaction.reply({ content: '❌ Usuario no válido o no está en VC.', ephemeral: true });
+
+      let coste = accion === 'desconectar' ? 1 : tiempo * 0.1;
+      if (db[userId] < coste) return interaction.reply({ content: `❌ No tienes suficientes tokens. Necesitas ${coste.toFixed(1)}.`, ephemeral: true });
+
+      db[userId] -= coste;
+      saveDB();
+
+      await aplicarEfecto(miembro, accion, tiempo * 1000);
+      return interaction.update({ content: `✅ Aplicaste **${accion}** a ${miembro.user.tag}`, components: [] });
+    }
+
+    // Botones de acción
+    const [_, accion, targetId] = interaction.customId.split('_');
+    const miembro = interaction.guild.members.cache.get(targetId);
+    if (!miembro || !miembro.voice.channel) return interaction.reply({ content: '❌ Usuario no válido o no está en VC.', ephemeral: true });
+
+    // Modal para acciones con duración
+    if (['silenciar','ensordecer','aislar'].includes(accion)) {
+      const modal = new ModalBuilder()
+        .setCustomId(`modal_${accion}_${targetId}`)
+        .setTitle(`Duración de ${accion}`);
+      const input = new TextInputBuilder()
+        .setCustomId('tiempo')
+        .setLabel('Introduce duración en segundos')
+        .setStyle(TextInputStyle.Short)
+        .setRequired(true);
+      modal.addComponents(new ActionRowBuilder().addComponents(input));
+      return interaction.showModal(modal);
+    }
+
+    // Desconectar
+    const coste = 1;
+    if (db[userId] < coste) return interaction.reply({ content: `❌ Necesitas ${coste} tokens para desconectar.`, ephemeral: true });
+
+    const confirmRow = new ActionRowBuilder().addComponents(
+      new ButtonBuilder().setCustomId(`confirmar_${accion}_${targetId}`).setLabel(`Confirmar (${coste} tokens)`).setStyle(ButtonStyle.Danger)
+    );
+    return interaction.reply({ content: `Desconectar a ${miembro.user.tag} cuesta ${coste} tokens. ¿Confirmas?`, components: [confirmRow], ephemeral: true });
+  }
+
+  // Modal submit
+  if (interaction.isModalSubmit()) {
+    const [_, accion, targetId] = interaction.customId.split('_');
+    const miembro = interaction.guild.members.cache.get(targetId);
+    if (!miembro || !miembro.voice.channel) return interaction.reply({ content: '❌ Usuario no válido o no está en VC.', ephemeral: true });
+
+    const tiempo = parseInt(interaction.fields.getTextInputValue('tiempo'));
+    if (isNaN(tiempo) || tiempo <= 0) return interaction.reply({ content: '❌ Tiempo no válido.', ephemeral: true });
+
+    const coste = tiempo * 0.1;
+    if (db[interaction.user.id] < coste) return interaction.reply({ content: `❌ Necesitas ${coste.toFixed(1)} tokens para esto.`, ephemeral: true });
+
+    const confirmRow = new ActionRowBuilder().addComponents(
+      new ButtonBuilder().setCustomId(`confirmar_${accion}_${targetId}_${tiempo}`).setLabel(`Confirmar (${coste.toFixed(1)} tokens)`).setStyle(ButtonStyle.Primary)
+    );
+
+    return interaction.reply({ content: `Aplicar ${accion} a ${miembro.user.tag} durante ${tiempo}s cuesta ${coste.toFixed(1)} tokens. ¿Confirmas?`, components: [confirmRow], ephemeral: true });
+  }
+});
+
+client.login(TOKEN);
