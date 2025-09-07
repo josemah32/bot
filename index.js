@@ -31,10 +31,11 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 async function getTokens(userId) {
   const { data, error } = await supabase
-  .from('users_tokens') // antes 'tokens'
-  .select('tokens')
-  .eq('user_id', userId)
-  .single();
+    .from('users_tokens') // ajusta según tu tabla
+    .select('tokens')
+    .eq('user_id', userId)
+    .maybeSingle(); // <-- aquí
+
   if (error) {
     console.error('getTokens error:', error);
     return 0;
