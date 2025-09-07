@@ -143,16 +143,6 @@ client.once('ready', () => {
     console.log(`Conectado como ${client.user.tag}`);
 });
 
-  try {
-    client.user.setActivity(name, { type }); // Cambia la actividad
-    client.user.setStatus(status); // Cambia el estado
-    res.sendStatus(200);
-  } catch (err) {
-    console.error(err);
-    res.sendStatus(500);
-  }
-});
-
 // Comandos
 const commands = [
   new SlashCommandBuilder()
