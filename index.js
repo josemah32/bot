@@ -256,46 +256,7 @@ client.on('interactionCreate', async interaction => {
   }
 
   // ------------------- BOTONES -------------------
-  if (interaction.isButton()) {
-    await interaction.deferUpdate();
-
-    // ------------------- ADMIN ACCIONES -------------------
-    if (interaction.customId.startsWith('accion_')) {
-      const [_, accion, targetId] = interaction.customId.split('_');
-      const miembro = interaction.guild.members.cache.get(targetId);
-      if (!miembro) return;
-
-      if (['silenciar', 'ensordecer'].includes(accion)) {
-        const modal = new ModalBuilder()
-          .setCustomId(`modal_${accion}_${targetId}`)
-          .setTitle(`Duración de ${accion}`);
-
-        const input = new TextInputBuilder()
-          .setCustomId('tiempo')
-          .setLabel('Duración en segundos')
-          .setStyle(TextInputStyle.Short)
-          .setRequired(true);
-
-        modal.addComponents(new ActionRowBuilder().addComponents(input));
-        await interaction.showModal(modal);
-      } else if (accion === 'desconectar') {
-        const coste = 1;
-        if (db[userId] < coste) {
-          await interaction.followUp({ content: `❌ No tienes suficientes tokens.`, ephemeral: true });
-          return;
-        }
-
-        const confirmRow = new ActionRowBuilder().addComponents(
-          new ButtonBuilder()
-            .setCustomId(`confirmar_${accion}_${targetId}_0`)
-            .setLabel(`Confirmar (${coste} tokens)`)
-            .setStyle(ButtonStyle.Danger)
-        );
-
-        await interaction.followUp({ content: `Desconectar a ${miembro.user.tag} cuesta ${coste} tokens. ¿Confirmas?`, components: [confirmRow], ephemeral: true });
-      }
-      return;
-    }
+if (interaction.isButton()) {
 
     // ------------------- CONFIRMAR ACCIONES -------------------
     if (interaction.customId.startsWith('confirmar_')) {
