@@ -3,6 +3,7 @@
     "discord.js": "^14.22.1",
     "dotenv": "^17.2.2",
     "pg": "^8.11.0",
+    "@supabase/supabase-js": "^2.10.0",
     "express": "^5.1.0"
   }
 }
