@@ -109,15 +109,14 @@ client.on('error', console.error);
 client.once('ready', () => console.log(`Conectado como ${client.user.tag}`));
 
 client.on('messageCreate', async message => {
-  if (message.author.bot) return; // Ignorar mensajes de bots
+  if (message.author.bot) return;
 
-  // Aquí es donde se llama a la función RPC para sumar tokens
   await supabase.rpc('increment_tokens', {
     uid: message.author.id, // ID de Discord como string
-    delta: 0.1              // Cantidad de tokens a sumar (decimal o entero)
+    delta: 1               // siempre 1 token entero por mensaje
   });
 
-  console.log(`[TOKENS] ${message.author.tag} +0.1`);
+  console.log(`[TOKENS] ${message.author.tag} +1`);
 });
 
 // -------------------- Comandos --------------------
