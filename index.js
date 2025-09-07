@@ -30,7 +30,11 @@ const SUPABASE_KEY = process.env.SUPABASE_KEY;
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 async function getTokens(userId) {
-  const { data, error } = await supabase.from('tokens').select('tokens').eq('user_id', userId).single();
+  const { data, error } = await supabase
+  .from('users_tokens') // antes 'tokens'
+  .select('tokens')
+  .eq('user_id', userId)
+  .single();
   if (error) {
     console.error('getTokens error:', error);
     return 0;
