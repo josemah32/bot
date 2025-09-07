@@ -23,6 +23,14 @@ const CLIENT_ID = process.env.CLIENT_ID;
 const GUILD_ID = process.env.GUILD_ID;
 const LOG_CHANNEL_ID = process.env.LOG_CHANNEL_ID;
 const ADMIN_PASSWORD = "germangey";
+const client = new Client({
+  intents: [
+    GatewayIntentBits.Guilds,
+    GatewayIntentBits.GuildMessages,
+    GatewayIntentBits.GuildVoiceStates,
+    GatewayIntentBits.GuildMembers
+  ]
+});
 
 // -------------------- Supabase --------------------
 const SUPABASE_URL = process.env.SUPABASE_URL;
@@ -163,14 +171,6 @@ app.post('/set-bot-status', async (req, res) => {
 app.listen(PORT, HOST, () => console.log(`Servidor corriendo en http://${HOST}:${PORT}`));
 
 // -------------------- Discord Bot --------------------
-const client = new Client({
-  intents: [
-    GatewayIntentBits.Guilds,
-    GatewayIntentBits.GuildMessages,
-    GatewayIntentBits.GuildVoiceStates,
-    GatewayIntentBits.GuildMembers
-  ]
-});
 
 const EPHEMERAL = 64;
 
