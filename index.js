@@ -114,6 +114,19 @@ app.listen(PORT, HOST, () => {
   console.log(`Servidor corriendo en http://${HOST}:${PORT}`);
 })
 
+app.post('/set-bot-status', async (req, res) => {
+  const { type, name, status } = req.body;
+
+  try {
+    client.user.setActivity(name, { type }); // Cambia la actividad
+    client.user.setStatus(status); // Cambia el estado
+    res.sendStatus(200);
+  } catch (err) {
+    console.error(err);
+    res.sendStatus(500);
+  }
+});
+
 ////////////////////////////////////////////BOT///////////////////////////////////////////////////////////
 
 let db = {};
