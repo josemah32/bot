@@ -31,11 +31,10 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // Funciones de tokens
 async function getTokens(userId) {
-  const numericUserId = Number(userId);
   const { data, error } = await supabase
     .from('users_tokens')
     .select('tokens')
-    .eq('user_id', numericUserId)
+    .eq('user_id', userId) // PASAMOS STRING
     .maybeSingle();
 
   if (error) {
@@ -47,8 +46,9 @@ async function getTokens(userId) {
 }
 
 async function changeTokens(userId, amount) {
+  // PASAMOS EL ID COMO STRING
   const { error } = await supabase.rpc('increment_tokens', {
-    uid: userId, // PASA COMO STRING
+    uid: userId,
     delta: amount
   });
 
