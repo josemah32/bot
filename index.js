@@ -29,23 +29,39 @@ const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_KEY;
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
+/**
+ * Obtiene los tokens de un usuario
+ * @param {number|string} userId
+ * @returns {Promise<number>}
+ */
 async function getTokens(userId) {
+  const numericUserId = Number(userId);
+
   const { data, error } = await supabase
     .from('users_tokens') // ajusta según tu tabla
     .select('tokens')
-    .eq('user_id', userId)
-    .maybeSingle(); // <-- aquí
+    .eq('user_id', numericUserId)
+    .maybeSingle();
 
   if (error) {
     console.error('getTokens error:', error);
     return 0;
   }
+
   return Number(data?.tokens || 0);
 }
 
+/**
+ * Cambia (suma/resta) tokens usando la función RPC increment_tokens
+ * @param {number|string} userId
+ * @param {number} amount
+ * @returns {Promise<boolean>}
+ */
 async function changeTokens(userId, amount) {
+  const numericUserId = Number(userId);
+
   const { error } = await supabase.rpc('increment_tokens', {
-    uid: userId,
+    uid: numericUserId,
     delta: amount
   });
 
@@ -57,14 +73,26 @@ async function changeTokens(userId, amount) {
   return true;
 }
 
+/**
+ * Establece los tokens de un usuario
+ * @param {number|string} userId
+ * @param {number} value
+ * @returns {Promise<number>}
+ */
 async function setTokens(userId, value) {
-  const { error } = await supabase.from('tokens').upsert(
-    { user_id: userId, tokens: value },
+  const numericUserId = Number(userId);
+
+  const { error } = await supabase.from('users_tokens').upsert(
+    { user_id: numericUserId, tokens: value },
     { onConflict: 'user_id' }
   );
+
   if (error) console.error('setTokens error:', error);
+
   return value;
 }
+
+export { getTokens, changeTokens, setTokens };
 
 // -------------------- Express --------------------
 const app = express();
