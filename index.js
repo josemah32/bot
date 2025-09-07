@@ -1,4 +1,4 @@
-r// index.js - Postgres integration + lazy migration
+// index.js - Postgres integration + lazy migration
 require('dotenv').config();
 const fs = require('fs');
 const path = require('path');
