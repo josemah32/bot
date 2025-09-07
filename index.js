@@ -45,9 +45,14 @@ async function getTokens(userId) {
 
 async function changeTokens(userId, amount) {
   // 1️⃣ Asegurar que exista la fila
-  await supabase
+  const { error: upsertError } = await supabase
     .from('users_tokens')
     .upsert({ user_id: userId, tokens: 0 }, { onConflict: 'user_id' });
+
+  if (upsertError) {
+    console.error('Error asegurando fila del usuario:', upsertError.message);
+    return false;
+  }
 
   // 2️⃣ Leer tokens actuales
   const { data, error: getError } = await supabase
@@ -61,9 +66,10 @@ async function changeTokens(userId, amount) {
     return false;
   }
 
+  // 3️⃣ Sumar tokens
   const newTokens = Number(data.tokens) + amount;
 
-  // 3️⃣ Actualizar tokens
+  // 4️⃣ Actualizar tokens
   const { error: updateError } = await supabase
     .from('users_tokens')
     .update({ tokens: newTokens })
