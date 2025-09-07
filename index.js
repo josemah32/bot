@@ -379,5 +379,3 @@ if (interaction.isButton()) {
    });
 
 client.login(TOKEN);
-  
-client.login(TOKEN);
