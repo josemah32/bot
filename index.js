@@ -405,6 +405,6 @@ client.on('interactionCreate', async interaction => {
     await logAccion(client, interaction.user.tag, accion, miembro.user.tag, tiempo, coste);
     await interaction.reply({ content: `✅ Aplicaste **${accion}** a ${miembro.user.tag} durante ${tiempo}s. Te quedan ${db[userId].toFixed(1)} tokens.`, flags: 64 });
   }
-});
+};
 
 client.login(TOKEN);
