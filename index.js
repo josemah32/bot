@@ -43,13 +43,47 @@ async function getTokens(userId) {
   return Number(data?.tokens || 0);
 }
 
-async function changeTokens(userId, delta) {
-  const { error } = await supabase.from('tokens').upsert(
-    { user_id: userId, tokens: delta },
-    { onConflict: 'user_id', ignoreDuplicates: false }
-  );
-  if (error) console.error('changeTokens error:', error);
-  return await getTokens(userId);
+async function changeTokens(userId, amount) {
+  // 1️⃣ Asegurarse de que exista la fila del usuario
+  let { data, error } = await supabase
+    .from('users_tokens')
+    .upsert(
+      { user_id: userId, tokens: 0 }, // si no existe, crea con 0 tokens
+      { onConflict: 'user_id' }       // evita duplicados
+    );
+
+  if (error) {
+    console.error('Error al asegurar fila del usuario:', error.message);
+    return false;
+  }
+
+  // 2️⃣ Obtener tokens actuales
+  let { data: tokenData, error: getError } = await supabase
+    .from('users_tokens')
+    .select('tokens')
+    .eq('user_id', userId)
+    .maybeSingle();
+
+  if (getError) {
+    console.error('Error al obtener tokens:', getError.message);
+    return false;
+  }
+
+  const currentTokens = Number(tokenData?.tokens || 0);
+  const newTokens = currentTokens + amount;
+
+  // 3️⃣ Actualizar tokens
+  let { error: updateError } = await supabase
+    .from('users_tokens')
+    .update({ tokens: newTokens })
+    .eq('user_id', userId);
+
+  if (updateError) {
+    console.error('Error al actualizar tokens:', updateError.message);
+    return false;
+  }
+
+  return true;
 }
 
 async function setTokens(userId, value) {
