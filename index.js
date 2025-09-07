@@ -1,4 +1,3 @@
-// index.js - versión corregida y robusta
 require('dotenv').config();
 const fs = require('fs');
 const path = require('path');
@@ -16,8 +15,7 @@ const {
   ModalBuilder,
   TextInputBuilder,
   TextInputStyle,
-  EmbedBuilder,
-  InteractionResponseFlags
+  EmbedBuilder
 } = require('discord.js');
 
 const TOKEN = process.env.DISCORD_TOKEN;
@@ -25,6 +23,9 @@ const CLIENT_ID = process.env.CLIENT_ID;
 const GUILD_ID = process.env.GUILD_ID;
 const LOG_CHANNEL_ID = process.env.LOG_CHANNEL_ID;
 const ADMIN_PASSWORD = "germangey";
+
+// Flag ephemeral (64) en vez de InteractionResponseFlags.Ephemeral
+const EPHEMERAL = 64;
 
 //////////////////////////////////////////// WEB ///////////////////////////////////////////
 
@@ -106,7 +107,7 @@ const client = new Client({
   ]
 });
 
-// Handlers globales para no morir con excepciones sin capturar
+// Handlers globales
 process.on('unhandledRejection', (reason) => console.error('[UNHANDLED REJECTION]', reason));
 process.on('uncaughtException', (err) => console.error('[UNCAUGHT EXCEPTION]', err));
 client.on('error', (err) => console.error('[CLIENT ERROR]', err));
@@ -148,21 +149,17 @@ async function aplicarEfecto(member, efecto, duracion = 30) {
         setTimeout(() => { member.voice.setDeaf(false).catch(() => {}); }, duracion * 1000);
         return { success: true };
       case 'desconectar':
-        // Intentamos desconectar de forma segura
         try {
           if (typeof member.voice.disconnect === 'function') {
             await member.voice.disconnect();
             return { success: true };
           }
-          // fallback: mover a null (si la función existe)
           if (typeof member.voice.setChannel === 'function') {
             await member.voice.setChannel(null);
             return { success: true };
           }
-          // última opción: si la librería no lo soporta, lanzar
           throw new Error('Disconnect not available');
         } catch (err) {
-          // si falla por permisos o jerarquía, propagar para ser manejado arriba
           throw err;
         }
       default:
@@ -217,7 +214,6 @@ client.on('interactionCreate', async interaction => {
     customId: interaction.customId ?? null
   });
 
-  // helper para responder de forma segura y evitar colisiones
   async function safeReply(inter, options) {
     try {
       if (!inter) return null;
@@ -234,7 +230,7 @@ client.on('interactionCreate', async interaction => {
   try {
     const userId = interaction.user?.id;
 
-    // ---- MODAL SUBMIT (duraciones para silenciar/ensordecer) ----
+    // ---- MODAL SUBMIT (duraciones) ----
     if (interaction.isModalSubmit()) {
       const parts = interaction.customId?.split('_') || [];
       if (parts[0] === 'modal') {
@@ -245,15 +241,14 @@ client.on('interactionCreate', async interaction => {
 
         if (!db[userId]) db[userId] = 0;
         if (db[userId] < coste) {
-          return await safeReply(interaction, { content: `❌ Necesitas ${coste.toFixed(1)} tokens para esto.`, flags: InteractionResponseFlags.Ephemeral });
+          return await safeReply(interaction, { content: `❌ Necesitas ${coste.toFixed(1)} tokens para esto.`, flags: EPHEMERAL });
         }
 
         const miembro = await interaction.guild.members.fetch(targetId).catch(() => null);
         if (!miembro) {
-          return await safeReply(interaction, { content: '❌ Usuario no encontrado.', flags: InteractionResponseFlags.Ephemeral });
+          return await safeReply(interaction, { content: '❌ Usuario no encontrado.', flags: EPHEMERAL });
         }
 
-        // Cobrar y aplicar
         db[userId] -= coste;
         saveDB();
 
@@ -262,21 +257,20 @@ client.on('interactionCreate', async interaction => {
           if (res?.error) throw new Error(res.error);
         } catch (err) {
           console.error('Error aplicando efecto desde modal:', err);
-          // devolver tokens si falló
           db[userId] += coste;
           saveDB();
-          return await safeReply(interaction, { content: '❌ No se pudo aplicar la acción (comprueba permisos/jerarquía).', flags: InteractionResponseFlags.Ephemeral });
+          return await safeReply(interaction, { content: '❌ No se pudo aplicar la acción (comprueba permisos/jerarquía).', flags: EPHEMERAL });
         }
 
         await logAccion(client, interaction.user.tag, accion, miembro.user.tag, tiempo, coste);
-        return await safeReply(interaction, { content: `✅ ${accion} aplicado a ${miembro.user.tag} por ${tiempo}s. (-${coste.toFixed(1)} tokens)`, flags: InteractionResponseFlags.Ephemeral });
+        return await safeReply(interaction, { content: `✅ ${accion} aplicado a ${miembro.user.tag} por ${tiempo}s. (-${coste.toFixed(1)} tokens)`, flags: EPHEMERAL });
       }
     }
 
     // ------------------- COMANDOS -------------------
     if (interaction.isChatInputCommand()) {
       if (interaction.commandName === 'tokens') {
-        return await safeReply(interaction, { content: `💰 Tienes ${db[userId] || 0} tokens.`, flags: InteractionResponseFlags.Ephemeral });
+        return await safeReply(interaction, { content: `💰 Tienes ${db[userId] || 0} tokens.`, flags: EPHEMERAL });
       }
 
       if (interaction.commandName === 'info') {
@@ -286,28 +280,27 @@ client.on('interactionCreate', async interaction => {
 - Coste de acciones: 🔇 Silenciar → 0.1 tokens * segundos, 🔈 Ensordecer → 0.1 tokens * segundos, ❌ Desconectar → 1 token
 - Comandos: /tokens, /admin, /info
         `;
-        return await safeReply(interaction, { content: infoMsg, flags: InteractionResponseFlags.Ephemeral });
+        return await safeReply(interaction, { content: infoMsg, flags: EPHEMERAL });
       }
 
       if (interaction.commandName === 'admin') {
         if (!db[userId] || db[userId] < 1) {
-          return await safeReply(interaction, { content: '❌ Necesitas al menos 1 token para usar admin.', flags: InteractionResponseFlags.Ephemeral });
+          return await safeReply(interaction, { content: '❌ Necesitas al menos 1 token para usar admin.', flags: EPHEMERAL });
         }
 
         const miembrosVC = (await interaction.guild.members.fetch()).filter(m => m.voice.channel && m.id !== userId);
         if (!miembrosVC.size) {
-          return await safeReply(interaction, { content: '❌ No hay miembros en canales de voz.', flags: InteractionResponseFlags.Ephemeral });
+          return await safeReply(interaction, { content: '❌ No hay miembros en canales de voz.', flags: EPHEMERAL });
         }
 
-        // deferimos (ephemeral) para dar tiempo si hace falta
-        await interaction.deferReply({ flags: InteractionResponseFlags.Ephemeral }).catch(() => {});
+        await interaction.deferReply({ flags: EPHEMERAL }).catch(() => {});
 
         const select = new StringSelectMenuBuilder()
           .setCustomId('select_member')
           .setPlaceholder('Selecciona un usuario')
           .addOptions(miembrosVC.map(m => ({ label: m.user.username, value: m.id })));
 
-        return await safeReply(interaction, { content: 'Selecciona un usuario para aplicar acción:', components: [new ActionRowBuilder().addComponents(select)], flags: InteractionResponseFlags.Ephemeral });
+        return await safeReply(interaction, { content: 'Selecciona un usuario para aplicar acción:', components: [new ActionRowBuilder().addComponents(select)], flags: EPHEMERAL });
       }
 
       if (interaction.commandName === 'robar') {
@@ -319,7 +312,7 @@ client.on('interactionCreate', async interaction => {
         const coste = Math.ceil(cantidad * 0.5);
         const probabilidad = Math.max(10, 70 - cantidad * 2);
         if (db[userId] < coste) {
-          return await safeReply(interaction, { content: `❌ Necesitas al menos ${coste} tokens para intentar el robo.`, flags: InteractionResponseFlags.Ephemeral });
+          return await safeReply(interaction, { content: `❌ Necesitas al menos ${coste} tokens para intentar el robo.`, flags: EPHEMERAL });
         }
 
         const row = new ActionRowBuilder().addComponents(
@@ -332,7 +325,7 @@ client.on('interactionCreate', async interaction => {
         return await safeReply(interaction, {
           content: `⚠️ Vas a intentar robar **${cantidad} tokens** a ${objetivo.tag}.\nCoste: **${coste} tokens**\nProbabilidad de éxito: **${probabilidad}%**\n\n¿Confirmas?`,
           components: [row],
-          flags: InteractionResponseFlags.Ephemeral
+          flags: EPHEMERAL
         });
       }
     }
@@ -342,7 +335,7 @@ client.on('interactionCreate', async interaction => {
       const targetId = interaction.values[0];
       const miembro = await interaction.guild.members.fetch(targetId).catch(() => null);
       if (!miembro || !miembro.voice.channel) {
-        return await safeReply(interaction, { content: '❌ Usuario no válido o no está en VC.', flags: InteractionResponseFlags.Ephemeral });
+        return await safeReply(interaction, { content: '❌ Usuario no válido o no está en VC.', flags: EPHEMERAL });
       }
 
       const acciones = ['silenciar', 'ensordecer', 'desconectar'];
@@ -350,7 +343,7 @@ client.on('interactionCreate', async interaction => {
         acciones.map(a => new ButtonBuilder().setCustomId(`accion_${a}_${targetId}`).setLabel(a.charAt(0).toUpperCase() + a.slice(1)).setStyle(ButtonStyle.Primary))
       );
 
-      return await safeReply(interaction, { content: `Usuario seleccionado: ${miembro.user.tag}. Elige acción:`, components: [botones], flags: InteractionResponseFlags.Ephemeral });
+      return await safeReply(interaction, { content: `Usuario seleccionado: ${miembro.user.tag}. Elige acción:`, components: [botones], flags: EPHEMERAL });
     }
 
     // ------------------- BOTONES -------------------
@@ -361,7 +354,7 @@ client.on('interactionCreate', async interaction => {
       if (custom.startsWith('accion_')) {
         const [_, accion, targetId] = custom.split('_');
         const miembro = await interaction.guild.members.fetch(targetId).catch(() => null);
-        if (!miembro) return await safeReply(interaction, { content: '❌ Usuario no encontrado.', flags: InteractionResponseFlags.Ephemeral });
+        if (!miembro) return await safeReply(interaction, { content: '❌ Usuario no encontrado.', flags: EPHEMERAL });
 
         if (['silenciar', 'ensordecer'].includes(accion)) {
           const modal = new ModalBuilder().setCustomId(`modal_${accion}_${targetId}`).setTitle(`Duración de ${accion}`);
@@ -375,7 +368,7 @@ client.on('interactionCreate', async interaction => {
           const confirmRow = new ActionRowBuilder().addComponents(
             new ButtonBuilder().setCustomId(`confirmar_${accion}_${targetId}_${coste}`).setLabel(`Confirmar (${coste} tokens)`).setStyle(ButtonStyle.Danger)
           );
-          return await safeReply(interaction, { content: `Desconectar a ${miembro.user.tag} cuesta ${coste} token. ¿Confirmas?`, components: [confirmRow], flags: InteractionResponseFlags.Ephemeral });
+          return await safeReply(interaction, { content: `Desconectar a ${miembro.user.tag} cuesta ${coste} token. ¿Confirmas?`, components: [confirmRow], flags: EPHEMERAL });
         }
       }
 
@@ -384,12 +377,11 @@ client.on('interactionCreate', async interaction => {
         const [_, accion, targetId, costeStr] = custom.split('_');
         const coste = Number(costeStr) || 0;
         if (!db[userId]) db[userId] = 0;
-        if (db[userId] < coste) return await safeReply(interaction, { content: '❌ No tienes suficientes tokens.', flags: InteractionResponseFlags.Ephemeral });
+        if (db[userId] < coste) return await safeReply(interaction, { content: '❌ No tienes suficientes tokens.', flags: EPHEMERAL });
 
         const miembro = await interaction.guild.members.fetch(targetId).catch(() => null);
-        if (!miembro) return await safeReply(interaction, { content: '❌ Usuario no encontrado.', flags: InteractionResponseFlags.Ephemeral });
+        if (!miembro) return await safeReply(interaction, { content: '❌ Usuario no encontrado.', flags: EPHEMERAL });
 
-        // intentar cobrar y aplicar con control de errores
         db[userId] -= coste;
         saveDB();
         try {
@@ -397,23 +389,22 @@ client.on('interactionCreate', async interaction => {
           if (res?.error) throw new Error(res.error);
         } catch (err) {
           console.error('Error aplicando efecto en confirmar:', err);
-          db[userId] += coste; // devolver tokens
+          db[userId] += coste;
           saveDB();
-          return await safeReply(interaction, { content: '❌ No se pudo aplicar la acción (permisos/jerarquía).', flags: InteractionResponseFlags.Ephemeral });
+          return await safeReply(interaction, { content: '❌ No se pudo aplicar la acción (permisos/jerarquía).', flags: EPHEMERAL });
         }
 
         await logAccion(client, interaction.user.tag, accion, miembro.user.tag, 0, coste);
 
-        // intentamos actualizar el mensaje original si existe, si no usamos safeReply
         if (interaction.message) {
           try {
             return await interaction.update({ content: `✅ ${miembro.user.tag} ha sido ${accion} por ${interaction.user.tag} (-${coste} tokens).`, components: [] });
           } catch (e) {
             console.error('update failed:', e);
-            return await safeReply(interaction, { content: `✅ ${miembro.user.tag} ha sido ${accion} (-${coste} tokens).`, flags: InteractionResponseFlags.Ephemeral });
+            return await safeReply(interaction, { content: `✅ ${miembro.user.tag} ha sido ${accion} (-${coste} tokens).`, flags: EPHEMERAL });
           }
         } else {
-          return await safeReply(interaction, { content: `✅ ${miembro.user.tag} ha sido ${accion} (-${coste} tokens).`, flags: InteractionResponseFlags.Ephemeral });
+          return await safeReply(interaction, { content: `✅ ${miembro.user.tag} ha sido ${accion} (-${coste} tokens).`, flags: EPHEMERAL });
         }
       }
 
@@ -424,10 +415,10 @@ client.on('interactionCreate', async interaction => {
         const { objetivoId, cantidad, coste, probabilidad } = data;
         if (!db[userId]) db[userId] = 0;
         if (!db[objetivoId]) db[objetivoId] = 0;
-        if (db[userId] < coste) return await safeReply(interaction, { content: `❌ No tienes suficientes tokens para confirmar.`, flags: InteractionResponseFlags.Ephemeral });
+        if (db[userId] < coste) return await safeReply(interaction, { content: `❌ No tienes suficientes tokens para confirmar.`, flags: EPHEMERAL });
 
         const miembro = await interaction.guild.members.fetch(objetivoId).catch(() => null);
-        if (!miembro) return await safeReply(interaction, { content: '❌ Usuario no encontrado.', flags: InteractionResponseFlags.Ephemeral });
+        if (!miembro) return await safeReply(interaction, { content: '❌ Usuario no encontrado.', flags: EPHEMERAL });
 
         db[userId] -= coste;
         const exito = Math.random() * 100 < probabilidad;
@@ -447,16 +438,16 @@ client.on('interactionCreate', async interaction => {
         await logAccion(client, interaction.user.tag, `Robo ${exito ? 'exitoso' : 'fallido'}`, miembro.user.tag, 0, coste);
 
         try { if (interaction.channel) await interaction.channel.send(mensajePublico); } catch (e) { console.error('No se pudo enviar mensaje público:', e); }
-        return await safeReply(interaction, { content: resultadoMsg, flags: InteractionResponseFlags.Ephemeral });
+        return await safeReply(interaction, { content: resultadoMsg, flags: EPHEMERAL });
       }
     } // fin isButton
   } catch (err) {
     console.error('[HANDLER ERROR]', err);
     try {
       if (interaction && !interaction.replied && !interaction.deferred) {
-        await interaction.reply({ content: '❌ Error interno al procesar la interacción.', flags: InteractionResponseFlags.Ephemeral });
+        await interaction.reply({ content: '❌ Error interno al procesar la interacción.', flags: EPHEMERAL });
       } else if (interaction) {
-        await interaction.followUp({ content: '❌ Error interno al procesar la interacción.', flags: InteractionResponseFlags.Ephemeral });
+        await interaction.followUp({ content: '❌ Error interno al procesar la interacción.', flags: EPHEMERAL });
       }
     } catch (e) {
       console.error('Error replying after handler crash:', e);
