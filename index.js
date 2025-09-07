@@ -274,57 +274,42 @@ client.on('interactionCreate', async interaction => {
 
         return await safeReply(interaction, { content: 'Selecciona un usuario para aplicar acción:', components: [new ActionRowBuilder().addComponents(select)], flags: EPHEMERAL });
       }
-         // -------------------- Botón Reclamar Tokens --------------------
+      
+// -------------------- Botón Reclamar Tokens --------------------
 if (interaction.isButton() && interaction.customId.startsWith('claim_tokens_')) {
-  const cantidad = parseInt(interaction.customId.split('_')[2]) || 0;
-
-  // Sumar tokens al usuario
-  await changeTokens(interaction.user.id, cantidad);
-
-  // Mensaje al usuario (efímero)
-  await interaction.reply({ 
-    content: `✅ Has reclamado **${cantidad} tokens**. Ahora tienes ${await getTokens(interaction.user.id)} tokens.`,
-    ephemeral: true
-  });
-
-  // Anuncio en el canal
-  if (interaction.channel) {
-    await interaction.channel.send(`💰 **${interaction.user.username}** ha reclamado **${cantidad} tokens**!`);
-  }
-
-  // Desactivar el botón para que no lo use otro
   try {
-    const row = ActionRowBuilder.from(interaction.message.components[0]);
-    row.components[0].setDisabled(true);
-    await interaction.message.edit({ components: [row] });
-  } catch (e) {
-    console.error('Error al desactivar botón:', e);
+    const cantidad = parseInt(interaction.customId.split('_')[2]) || 0;
+
+    // Sumar tokens al usuario
+    await changeTokens(interaction.user.id, cantidad);
+
+    // Confirmación efímera al usuario
+    await safeReply(interaction, {
+      content: `✅ Has reclamado **${cantidad} tokens**. Ahora tienes ${await getTokens(interaction.user.id)} tokens.`,
+      flags: EPHEMERAL
+    });
+
+    // Anuncio en el canal
+    if (interaction.channel) {
+      await interaction.channel.send(
+        `💰 **${interaction.user.username}** ha reclamado **${cantidad} tokens**!`
+      );
+    }
+
+    // Desactivar botón (si existe)
+    if (interaction.message?.components?.length) {
+      const row = ActionRowBuilder.from(interaction.message.components[0]);
+      row.components[0].setDisabled(true);
+      await interaction.message.edit({ components: [row] });
+    }
+  } catch (err) {
+    console.error('Error al reclamar tokens:', err);
+    await safeReply(interaction, {
+      content: '❌ Error al reclamar tokens.',
+      flags: EPHEMERAL
+    });
   }
 }
-      if (interaction.commandName === 'robar') {
-        const objetivo = interaction.options.getUser('objetivo');
-        const cantidad = interaction.options.getInteger('cantidad');
-        const tokensUser = await getTokens(userId);
-        if (!objetivo) return await safeReply(interaction, { content: '❌ Usuario objetivo inválido.', flags: EPHEMERAL });
-
-        const coste = Math.ceil(cantidad * 0.5);
-        const probabilidad = Math.max(10, 70 - cantidad * 2);
-        if (tokensUser < coste) return await safeReply(interaction, { content: `❌ Necesitas al menos ${coste} tokens para intentar el robo.`, flags: EPHEMERAL });
-
-        const row = new ActionRowBuilder().addComponents(
-          new ButtonBuilder()
-            .setCustomId(JSON.stringify({ type: 'robo', objetivoId: objetivo.id, cantidad, coste, probabilidad }))
-            .setLabel('Confirmar robo')
-            .setStyle(ButtonStyle.Danger)
-        );
-
-        return await safeReply(interaction, {
-          content: `⚠️ Vas a intentar robar **${cantidad} tokens** a ${objetivo.tag}.\nCoste: **${coste} tokens**\nProbabilidad de éxito: **${probabilidad}%**\n\n¿Confirmas?`,
-          components: [row],
-          flags: EPHEMERAL
-        });
-      }
-    }
 
     // -------------------- Selecciones --------------------
     if (interaction.isStringSelectMenu() && interaction.customId === 'select_member') {
