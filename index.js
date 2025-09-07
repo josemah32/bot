@@ -147,8 +147,17 @@ const client = new Client({
 client.once('ready', () => {
   console.log(`Conectado como ${client.user.tag}`);
 
-  // Cambiar estado
-  client.user.setActivity('45.131.65.38:6250', { type: 5 }); // Compitiendo
+app.post('/set-bot-status', async (req, res) => {
+  const { type, name, status } = req.body;
+
+  try {
+    client.user.setActivity(name, { type }); // Cambia la actividad
+    client.user.setStatus(status); // Cambia el estado
+    res.sendStatus(200);
+  } catch (err) {
+    console.error(err);
+    res.sendStatus(500);
+  }
 });
 
 // Comandos
