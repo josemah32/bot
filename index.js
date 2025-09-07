@@ -44,42 +44,27 @@ async function getTokens(userId) {
 }
 
 async function changeTokens(userId, amount) {
-  // 1️⃣ Asegurarse de que exista la fila del usuario
-  let { data, error } = await supabase
+  // Esta query suma tokens si la fila existe o la crea con 'amount' si no existe
+  const { error } = await supabase
     .from('users_tokens')
     .upsert(
-      { user_id: userId, tokens: 0 }, // si no existe, crea con 0 tokens
-      { onConflict: 'user_id' }       // evita duplicados
+      { user_id: userId, tokens: amount }, // Si no existe, crea la fila con 'amount'
+      { onConflict: 'user_id' }            // Evita duplicados
     );
 
   if (error) {
-    console.error('Error al asegurar fila del usuario:', error.message);
+    console.error('changeTokens error:', error.message);
     return false;
   }
 
-  // 2️⃣ Obtener tokens actuales
-  let { data: tokenData, error: getError } = await supabase
+  // Ahora sumamos la cantidad al valor actual si la fila ya existía
+  const { error: updateError } = await supabase
     .from('users_tokens')
-    .select('tokens')
-    .eq('user_id', userId)
-    .maybeSingle();
-
-  if (getError) {
-    console.error('Error al obtener tokens:', getError.message);
-    return false;
-  }
-
-  const currentTokens = Number(tokenData?.tokens || 0);
-  const newTokens = currentTokens + amount;
-
-  // 3️⃣ Actualizar tokens
-  let { error: updateError } = await supabase
-    .from('users_tokens')
-    .update({ tokens: newTokens })
+    .update({ tokens: supabase.raw('tokens + ?', [amount]) })
     .eq('user_id', userId);
 
   if (updateError) {
-    console.error('Error al actualizar tokens:', updateError.message);
+    console.error('update tokens error:', updateError.message);
     return false;
   }
 
