@@ -292,102 +292,94 @@ client.on('interactionCreate', async interaction => {
 
   // ------------------- BOTONES -------------------
   if (interaction.isButton()) {
-    const userId = interaction.user.id;
-
-    if (interaction.customId.startsWith('accion_')) {
-      const [_, accion, targetId] = interaction.customId.split('_');
-      const miembro = interaction.guild.members.cache.get(targetId);
-      if (!miembro) return;
-
-      if (['silenciar', 'ensordecer'].includes(accion)) {
-        const modal = new ModalBuilder()
-          .setCustomId(`modal_${accion}_${targetId}`)
-          .setTitle(`Duración de ${accion}`);
-
-        const input = new TextInputBuilder()
-          .setCustomId('tiempo')
-          .setLabel('Duración en segundos')
-          .setStyle(TextInputStyle.Short)
-          .setRequired(true);
-
-        modal.addComponents(new ActionRowBuilder().addComponents(input));
-        // MOSTRAR MODAL DIRECTO, sin deferUpdate
-        await interaction.showModal(modal);
-      } else if (accion === 'desconectar') {
-        await interaction.deferUpdate(); // sí usar deferUpdate porque no hay modal
-        const coste = 1;
-        if (db[userId] < coste) {
-          await interaction.followUp({ content: `❌ No tienes suficientes tokens.`, flags: 64 });
-          return;
-        }
-
-        const confirmRow = new ActionRowBuilder().addComponents(
-          new ButtonBuilder()
-            .setCustomId(`confirmar_${accion}_${targetId}_0`)
-            .setLabel(`Confirmar (${coste} tokens)`)
-            .setStyle(ButtonStyle.Danger)
-        );
-
-        await interaction.followUp({ content: `Desconectar a ${miembro.user.tag} cuesta ${coste} tokens. ¿Confirmas?`, components: [confirmRow], flags: 64 });
-      }
-      return;
-    }
-
-    // ------------------- CONFIRMAR ROBO -------------------
-  if (interaction.isButton()) {
-  // Comprobar si es un botón de robo
-  let data;
-  try {
-    data = JSON.parse(interaction.customId);
-  } catch {
-    return; // Si no es JSON válido, salir
-  }
-
-  if (data.type !== 'robo') return;
-
-  const { objetivoId, cantidad, coste, probabilidad } = data;
   const userId = interaction.user.id;
 
-  if (!db[userId]) db[userId] = 0;
-  if (!db[objetivoId]) db[objetivoId] = 0;
+  // ------------------- ACCIONES ADMIN -------------------
+  if (interaction.customId.startsWith('accion_')) {
+    const [_, accion, targetId] = interaction.customId.split('_');
+    const miembro = interaction.guild.members.cache.get(targetId);
+    if (!miembro) return;
 
-  if (db[userId] < coste) {
-    await interaction.reply({ content: `❌ No tienes suficientes tokens para confirmar.`, flags: 64 });
+    if (['silenciar', 'ensordecer'].includes(accion)) {
+      const modal = new ModalBuilder()
+        .setCustomId(`modal_${accion}_${targetId}`)
+        .setTitle(`Duración de ${accion}`);
+
+      const input = new TextInputBuilder()
+        .setCustomId('tiempo')
+        .setLabel('Duración en segundos')
+        .setStyle(TextInputStyle.Short)
+        .setRequired(true);
+
+      modal.addComponents(new ActionRowBuilder().addComponents(input));
+      await interaction.showModal(modal);
+    } else if (accion === 'desconectar') {
+      await interaction.deferUpdate();
+      const coste = 1;
+      if (db[userId] < coste) {
+        await interaction.followUp({ content: `❌ No tienes suficientes tokens.`, flags: 64 });
+        return;
+      }
+
+      const confirmRow = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setCustomId(`confirmar_${accion}_${targetId}_0`)
+          .setLabel(`Confirmar (${coste} tokens)`)
+          .setStyle(ButtonStyle.Danger)
+      );
+
+      await interaction.followUp({
+        content: `Desconectar a ${miembro.user.tag} cuesta ${coste} tokens. ¿Confirmas?`,
+        components: [confirmRow],
+        flags: 64
+      });
+    }
     return;
   }
 
-  const miembro = await interaction.guild.members.fetch(objetivoId).catch(() => null);
-  if (!miembro) return;
+  // ------------------- CONFIRMAR ROBO -------------------
+  let data;
+  try {
+    data = JSON.parse(interaction.customId);
+  } catch { data = null; }
 
-  db[userId] -= coste;
-  const exito = Math.random() * 100 < probabilidad;
+  if (data && data.type === 'robo') {
+    const { objetivoId, cantidad, coste, probabilidad } = data;
+    if (!db[userId]) db[userId] = 0;
+    if (!db[objetivoId]) db[objetivoId] = 0;
 
-  let resultadoMsg = '';
-  let mensajePublico = '';
+    if (db[userId] < coste) {
+      await interaction.reply({ content: `❌ No tienes suficientes tokens para confirmar.`, flags: 64 });
+      return;
+    }
 
-  if (exito) {
-    const robado = Math.min(cantidad, db[objetivoId]);
-    db[objetivoId] -= robado;
-    db[userId] += robado;
+    const miembro = await interaction.guild.members.fetch(objetivoId).catch(() => null);
+    if (!miembro) return;
 
-    resultadoMsg = `✅ Has robado **${robado} tokens** de ${miembro.user.tag}. Te quedan ${db[userId].toFixed(1)} tokens.`;
-    mensajePublico = `💰 **${interaction.user.username}** ha robado **${robado} tokens** de **${miembro.user.username}**!`;
-  } else {
-    resultadoMsg = `❌ Fallaste el robo a ${miembro.user.tag}. Perdistes ${coste} tokens. Te quedan ${db[userId].toFixed(1)} tokens.`;
-    mensajePublico = `❌ **${interaction.user.username}** ha fallado el robo a **${miembro.user.username}** y perdió ${coste} tokens.`;
+    db[userId] -= coste;
+    const exito = Math.random() * 100 < probabilidad;
+
+    let resultadoMsg = '';
+    let mensajePublico = '';
+
+    if (exito) {
+      const robado = Math.min(cantidad, db[objetivoId]);
+      db[objetivoId] -= robado;
+      db[userId] += robado;
+
+      resultadoMsg = `✅ Has robado **${robado} tokens** de ${miembro.user.tag}. Te quedan ${db[userId].toFixed(1)} tokens.`;
+      mensajePublico = `💰 **${interaction.user.username}** ha robado **${robado} tokens** de **${miembro.user.username}**!`;
+    } else {
+      resultadoMsg = `❌ Fallaste el robo a ${miembro.user.tag}. Perdistes ${coste} tokens. Te quedan ${db[userId].toFixed(1)} tokens.`;
+      mensajePublico = `❌ **${interaction.user.username}** ha fallado el robo a **${miembro.user.username}** y perdió ${coste} tokens.`;
+    }
+
+    saveDB();
+    await logAccion(client, interaction.user.tag, `Robo ${exito ? 'exitoso' : 'fallido'}`, miembro.user.tag, 0, coste);
+    await interaction.channel.send(mensajePublico);
+    await interaction.reply({ content: resultadoMsg, flags: 64 });
+    return;
   }
-
-  saveDB();
-
-  // Enviar log embed al canal de logs privado
-  await logAccion(client, interaction.user.tag, `Robo ${exito ? 'exitoso' : 'fallido'}`, miembro.user.tag, 0, coste);
-
-  // Enviar mensaje público en el canal de la interacción
-  await interaction.channel.send(mensajePublico);
-
-  // Responder al usuario que ejecutó la acción (ephemeral)
-  await interaction.reply({ content: resultadoMsg, flags: 64 });
-  return;
 }
 
   // ------------------- MODALES -------------------
