@@ -334,12 +334,20 @@ client.on('interactionCreate', async interaction => {
     }
 
     // ------------------- CONFIRMAR ROBO -------------------
-  if (interaction.customId) {
+  if (interaction.isButton()) {
+  // Comprobar si es un botón de robo
   let data;
-  try { data = JSON.parse(interaction.customId); } catch { return; }
+  try {
+    data = JSON.parse(interaction.customId);
+  } catch {
+    return; // Si no es JSON válido, salir
+  }
+
   if (data.type !== 'robo') return;
 
   const { objetivoId, cantidad, coste, probabilidad } = data;
+  const userId = interaction.user.id;
+
   if (!db[userId]) db[userId] = 0;
   if (!db[objetivoId]) db[objetivoId] = 0;
 
@@ -371,8 +379,13 @@ client.on('interactionCreate', async interaction => {
 
   saveDB();
 
+  // Enviar log embed al canal de logs privado
   await logAccion(client, interaction.user.tag, `Robo ${exito ? 'exitoso' : 'fallido'}`, miembro.user.tag, 0, coste);
+
+  // Enviar mensaje público en el canal de la interacción
   await interaction.channel.send(mensajePublico);
+
+  // Responder al usuario que ejecutó la acción (ephemeral)
   await interaction.reply({ content: resultadoMsg, flags: 64 });
   return;
 }
