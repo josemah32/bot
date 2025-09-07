@@ -44,39 +44,13 @@ async function getTokens(userId) {
 }
 
 async function changeTokens(userId, amount) {
-  // 1️⃣ Asegurar que exista la fila
-  const { error: upsertError } = await supabase
-    .from('users_tokens')
-    .upsert({ user_id: userId, tokens: 0 }, { onConflict: 'user_id' });
+  const { error } = await supabase.rpc('increment_tokens', {
+    uid: userId,
+    delta: amount
+  });
 
-  if (upsertError) {
-    console.error('Error asegurando fila del usuario:', upsertError.message);
-    return false;
-  }
-
-  // 2️⃣ Leer tokens actuales
-  const { data, error: getError } = await supabase
-    .from('users_tokens')
-    .select('tokens')
-    .eq('user_id', userId)
-    .maybeSingle();
-
-  if (getError || !data) {
-    console.error('Error leyendo tokens:', getError?.message);
-    return false;
-  }
-
-  // 3️⃣ Sumar tokens
-  const newTokens = Number(data.tokens) + amount;
-
-  // 4️⃣ Actualizar tokens
-  const { error: updateError } = await supabase
-    .from('users_tokens')
-    .update({ tokens: newTokens })
-    .eq('user_id', userId);
-
-  if (updateError) {
-    console.error('Error guardando tokens:', updateError.message);
+  if (error) {
+    console.error('Error cambiando tokens:', error.message);
     return false;
   }
 
