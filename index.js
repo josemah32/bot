@@ -246,6 +246,10 @@ client.on('interactionCreate', async interaction => {
       if (interaction.commandName === 'info') {
         return await safeReply(interaction, {
           content: `
+🛜**La WEB del bot**
+- Se encuentra en desarollo 🚧
+- Puedes intentar al panel de administrador, adivinando la contraseña
+- Puedes acceder atraves de este enlace: https://bot-bnzz.onrender.com/
 📖 **Sistema de Tokens**
 - Por cada mensaje enviado ganas: +1 token
 - Coste de acciones: 🔇 Silenciar → 0.1 tokens * segundos, 🔈 Ensordecer → 0.1 tokens * segundos, ❌ Desconectar → 1 token
