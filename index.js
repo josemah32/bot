@@ -1,7 +1,7 @@
 require('dotenv').config();
 const fs = require('fs');
-const express = require('express');
 const path = require('path');
+const express = require('express');
 const {
   Client,
   GatewayIntentBits,
@@ -51,21 +51,16 @@ app.post('/set-bot-status', async (req, res) => {
         res.sendStatus(500);
     }
 });
+
 app.post('/send-embed', async (req, res) => {
   try {
     const { channelId, title, description, color, image, thumbnail, author, footer, fields } = req.body;
-
-    // Validar que se haya enviado un canal
     if (!channelId) return res.status(400).send('❌ No se proporcionó un ID de canal');
 
-    // Obtener el canal
     const channel = await client.channels.fetch(channelId).catch(() => null);
-    if (!channel || !channel.isTextBased())
-      return res.status(400).send('❌ Canal inválido o el bot no tiene acceso');
+    if (!channel || !channel.isTextBased()) return res.status(400).send('❌ Canal inválido o el bot no tiene acceso');
 
-    // Crear embed
     const embed = new EmbedBuilder();
-
     if (title) embed.setTitle(title);
     if (description) embed.setDescription(description);
     embed.setColor(color ? parseInt(color.replace('#', ''), 16) : 0x0099ff);
@@ -75,12 +70,7 @@ app.post('/send-embed', async (req, res) => {
     if (footer) embed.setFooter({ text: footer });
     if (fields?.length) embed.addFields(fields.map(f => ({ name: f.name, value: f.value })));
 
-    // Enviar embed
-    await channel.send({ embeds: [embed] }).catch(err => {
-      console.error('Error al enviar embed:', err);
-      return res.status(500).send('❌ Error al enviar el embed: ' + err.message);
-    });
-
+    await channel.send({ embeds: [embed] });
     res.status(200).send('✅ Embed enviado correctamente');
   } catch (err) {
     console.error(err);
@@ -88,7 +78,6 @@ app.post('/send-embed', async (req, res) => {
   }
 });
 
-// Enviar mensaje para dar tokens
 app.post('/send-tokens', async (req, res) => {
   try {
     const { cantidad, canalId, mensaje } = req.body;
@@ -102,24 +91,10 @@ app.post('/send-tokens', async (req, res) => {
     const row = new ActionRowBuilder().addComponents(boton);
 
     await channel.send({ content: mensaje || `Haz click para reclamar ${cantidad} tokens!`, components: [row] });
-
     res.status(200).send('Mensaje de tokens enviado');
   } catch(err) {
     console.error(err);
     res.status(500).send('Error al enviar mensaje de tokens');
-  }
-});
-
-app.post('/set-bot-status', async (req, res) => {
-  const { type, name, status } = req.body;
-
-  try {
-    client.user.setActivity(name, { type }); // Cambia la actividad
-    client.user.setStatus(status); // Cambia el estado
-    res.sendStatus(200);
-  } catch (err) {
-    console.error(err);
-    res.sendStatus(500);
   }
 });
 
@@ -145,7 +120,8 @@ client.once('ready', () => {
     console.log(`Conectado como ${client.user.tag}`);
 });
 
-// Comandos
+///////////////////////////////////////// COMANDOS //////////////////////////////////////////////////////////
+
 const commands = [
   new SlashCommandBuilder()
     .setName('admin')
@@ -172,78 +148,27 @@ const rest = new REST({ version: '10' }).setToken(TOKEN);
   await rest.put(Routes.applicationGuildCommands(CLIENT_ID, GUILD_ID), { body: commands });
 })();
 
-// Contador de mensajes
-client.on('messageCreate', message => {
-  if (message.author.bot) return;
-  const id = message.author.id;
-  if (!db[id]) db[id] = 0;
-  db[id] += 1;
-  saveDB();
-  console.log(`[LOG] ${message.author.tag} ha enviado un mensaje. Total tokens: ${db[id]}`);
-});
-// 📌 Función para enviar logs
-async function logAccion(client, usuario, accion, target, duracion, coste) {
-  try {
-    const canalLogs = client.channels.cache.get(LOG_CHANNEL_ID);
-    if (!canalLogs) return console.warn("⚠️ Canal de logs no encontrado");
+///////////////////////////////////////// FUNCIONES ////////////////////////////////////////////////////////
 
-    const embed = new EmbedBuilder()
-      .setTitle("📝 Acción Admin")
-      .setColor(0xffa500)
-      .addFields(
-        { name: "👤 Usuario", value: usuario, inline: true },
-        { name: "🎯 Objetivo", value: target, inline: true },
-        { name: "⚡ Acción", value: accion, inline: true },
-        { name: "⏳ Duración", value: `${duracion || 0}s`, inline: true },
-        { name: "💰 Coste", value: `${coste.toFixed(1)} tokens`, inline: true }
-      )
-      .setTimestamp();
+function logAccion(client, usuario, accion, target, duracion, coste) {
+  const canalLogs = client.channels.cache.get(LOG_CHANNEL_ID);
+  if (!canalLogs) return;
 
-    await canalLogs.send({ embeds: [embed] });
-  } catch (err) {
-    console.error("Error enviando log:", err);
-  }
+  const embed = new EmbedBuilder()
+    .setTitle("📝 Acción Admin")
+    .setColor(0xffa500)
+    .addFields(
+      { name: "👤 Usuario", value: usuario, inline: true },
+      { name: "🎯 Objetivo", value: target, inline: true },
+      { name: "⚡ Acción", value: accion, inline: true },
+      { name: "⏳ Duración", value: `${duracion || 0}s`, inline: true },
+      { name: "💰 Coste", value: `${coste.toFixed(1)} tokens`, inline: true }
+    )
+    .setTimestamp();
+
+  canalLogs.send({ embeds: [embed] });
 }
 
-client.on('interactionCreate', async interaction => {
-  if (interaction.isButton() && interaction.customId.startsWith('claim_tokens_')) {
-    const cantidad = parseFloat(interaction.customId.split('_')[2]);
-    const userId = interaction.user.id;
-
-    // Comprobar si ya hay ganador
-    if (db[`token_claim_${interaction.message.id}`]) {
-      await interaction.reply({ content: '❌ Ya se ha reclamado este bono de tokens.', ephemeral: true });
-      return;
-    }
-
-    // Registrar usuario y dar tokens
-    db[`token_claim_${interaction.message.id}`] = userId;
-    if (!db[userId]) db[userId] = 0;
-    db[userId] += cantidad;
-    saveDB();
-
-    await interaction.reply({ content: `✅ Has recibido ${cantidad} tokens!`, ephemeral: true });
-
-    // Log en canal de logs
-    const logChannel = client.channels.cache.get(LOG_CHANNEL_ID);
-    if(logChannel){
-      const embed = new EmbedBuilder()
-        .setTitle('💰 Token reclamado')
-        .setDescription(`${interaction.user.tag} ha reclamado ${cantidad} tokens`)
-        .setColor(0x00ff00)
-        .setTimestamp();
-      await logChannel.send({ embeds: [embed] });
-    }
-
-    // Desactivar botón
-    const row = interaction.message.components[0];
-    row.components[0].setDisabled(true);
-    await interaction.message.edit({ components: [row] });
-  }
-});
-
-
-// Función para aplicar efectos
 async function aplicarEfecto(member, efecto, duracion = 30) {
   try {
     if (!member.voice.channel) return { error: 'El usuario no está en un canal de voz.' };
@@ -252,42 +177,42 @@ async function aplicarEfecto(member, efecto, duracion = 30) {
       case 'silenciar':
         await member.voice.setMute(true);
         setTimeout(() => member.voice.setMute(false), duracion * 1000);
-        console.log(`[LOG] Silenciando a ${member.user.tag} por ${duracion}s`);
         return { success: true };
-
       case 'ensordecer':
         await member.voice.setDeaf(true);
         setTimeout(() => member.voice.setDeaf(false), duracion * 1000);
-        console.log(`[LOG] Ensordeciendo a ${member.user.tag} por ${duracion}s`);
         return { success: true };
-
       case 'desconectar':
         await member.voice.disconnect("Acción admin temporal");
-        console.log(`[LOG] Desconectando a ${member.user.tag}`);
         return { success: true };
-
       default:
         return { error: 'Acción desconocida.' };
     }
   } catch (err) {
-    console.error('Error aplicando efecto:', err);
     return { error: 'Ocurrió un error al aplicar el efecto.' };
   }
 }
 
-// Interacciones de comandos
+///////////////////////////////////////// EVENTOS //////////////////////////////////////////////////////////
+
+client.on('messageCreate', message => {
+  if (message.author.bot) return;
+  const id = message.author.id;
+  if (!db[id]) db[id] = 0;
+  db[id] += 1;
+  saveDB();
+});
+
 client.on('interactionCreate', async interaction => {
   const userId = interaction.user.id;
 
-  // /tokens
+  // ------------------------------------------ /tokens ------------------------------------------
   if (interaction.isChatInputCommand()) {
     if (interaction.commandName === 'tokens') {
-      const tokens = db[userId] || 0;
-      await interaction.reply({ content: `💰 Tienes ${tokens} tokens.`, ephemeral: true });
-      return;
+      return await interaction.reply({ content: `💰 Tienes ${db[userId] || 0} tokens.`, flags: 64 });
     }
 
-if (interaction.commandName === 'info') {
+    if (interaction.commandName === 'info') {
       const infoMsg = `
 📖 **Sistema de Tokens**
 
@@ -302,244 +227,156 @@ if (interaction.commandName === 'info') {
 - \`/admin\` → usar tokens para aplicar acciones
 - \`/info\` → mostrar esta información
       `;
-      await interaction.reply({ content: infoMsg, ephemeral: true });
-      return;
+      return await interaction.reply({ content: infoMsg, flags: 64 });
     }
 
     if (interaction.commandName === 'admin') {
-      if (!db[userId] || db[userId] < 1) {
-        await interaction.reply({ content: '❌ Necesitas al menos 1 token para usar admin.', ephemeral: true });
-        return;
-      }
+      if (!db[userId] || db[userId] < 1) return await interaction.reply({ content: '❌ Necesitas al menos 1 token para usar admin.', flags: 64 });
 
       await interaction.guild.members.fetch();
       const miembrosVC = interaction.guild.members.cache.filter(m => m.voice.channel && m.id !== userId);
-      if (!miembrosVC.size) {
-        await interaction.reply({ content: '❌ No hay miembros en canales de voz.', ephemeral: true });
-        return;
-      }
+      if (!miembrosVC.size) return await interaction.reply({ content: '❌ No hay miembros en canales de voz.', flags: 64 });
 
       const select = new StringSelectMenuBuilder()
         .setCustomId('select_member')
         .setPlaceholder('Selecciona un usuario')
         .addOptions(miembrosVC.map(m => ({ label: m.user.username, value: m.id })));
 
-      await interaction.reply({ content: 'Selecciona un usuario para aplicar acción:', components: [new ActionRowBuilder().addComponents(select)], ephemeral: true });
+      return await interaction.reply({ content: 'Selecciona un usuario para aplicar acción:', components: [new ActionRowBuilder().addComponents(select)], flags: 64 });
+    }
+
+    // ------------------------------------------ /robar ------------------------------------------
+    if (interaction.commandName === 'robar') {
+      const objetivo = interaction.options.getUser('objetivo');
+      const cantidad = interaction.options.getInteger('cantidad');
+      const ladrónId = interaction.user.id;
+
+      if (!objetivo) return await interaction.reply({ content: '❌ Usuario no válido.', flags: 64 });
+      if (objetivo.id === ladrónId) return await interaction.reply({ content: '❌ No puedes robarte a ti mismo.', flags: 64 });
+      if (cantidad <= 0) return await interaction.reply({ content: '❌ La cantidad debe ser mayor a 0.', flags: 64 });
+
+      if (!db[ladrónId]) db[ladrónId] = 0;
+      if (!db[objetivo.id]) db[objetivo.id] = 0;
+
+      const coste = Math.ceil(cantidad * 0.5);
+      let probExito = 70 - (cantidad * 2);
+      if (probExito < 10) probExito = 10;
+      if (db[ladrónId] < coste) return await interaction.reply({ content: `❌ Necesitas al menos ${coste} tokens para intentar este robo.`, flags: 64 });
+
+      const row = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setCustomId(JSON.stringify({ type: 'robo', objetivoId: objetivo.id, cantidad, coste, probabilidad: probExito }))
+          .setLabel('Confirmar robo')
+          .setStyle(ButtonStyle.Danger)
+      );
+
+      return await interaction.reply({
+        content: `⚠️ Vas a intentar robar **${cantidad} tokens** a ${objetivo.tag}.\nCoste: **${coste} tokens**\nProbabilidad de éxito: **${probExito}%**\n\n¿Confirmas?`,
+        components: [row],
+        flags: 64
+      });
     }
   }
 
-  // Menú de selección
-  if (interaction.isStringSelectMenu() && interaction.customId === 'select_member') {
-    await interaction.deferUpdate();
-    const targetId = interaction.values[0];
-    const miembro = interaction.guild.members.cache.get(targetId);
-    if (!miembro || !miembro.voice.channel) {
-      await interaction.followUp({ content: '❌ Usuario no válido o no está en VC.', ephemeral: true });
+  // ------------------------------------------ Botones ------------------------------------------
+  if (interaction.isButton()) {
+    await interaction.deferUpdate().catch(() => {}); // Evitar error de interaction expirado
+
+    // Botón claim tokens
+    if (interaction.customId.startsWith('claim_tokens_')) {
+      const cantidad = parseFloat(interaction.customId.split('_')[2]);
+      const userId = interaction.user.id;
+
+      if (db[`token_claim_${interaction.message.id}`]) return interaction.followUp({ content: '❌ Ya se ha reclamado este bono de tokens.', flags: 64 });
+
+      db[`token_claim_${interaction.message.id}`] = userId;
+      if (!db[userId]) db[userId] = 0;
+      db[userId] += cantidad;
+      saveDB();
+
+      await interaction.followUp({ content: `✅ Has recibido ${cantidad} tokens!`, flags: 64 });
+      const row = interaction.message.components[0];
+      row.components[0].setDisabled(true);
+      await interaction.message.edit({ components: [row] });
       return;
     }
 
-    const acciones = ['silenciar', 'ensordecer', 'desconectar'];
-    const botones = new ActionRowBuilder().addComponents(
-      acciones.map(a => new ButtonBuilder().setCustomId(`accion_${a}_${targetId}`).setLabel(a.charAt(0).toUpperCase() + a.slice(1)).setStyle(ButtonStyle.Primary))
-    );
+    // Botones de robo
+    let data;
+    try {
+      data = JSON.parse(interaction.customId);
+    } catch { return interaction.followUp({ content: '❌ Error interno, customId inválido.', flags: 64 }); }
 
-    await interaction.followUp({ content: `Usuario seleccionado: ${miembro.user.tag}. Elige acción:`, components: [botones], ephemeral: true });
-  }
+    if (data.type === 'robo') {
+      const { objetivoId, cantidad, coste, probabilidad } = data;
+      const ladrónId = interaction.user.id;
+      if (!db[ladrónId]) db[ladrónId] = 0;
+      if (!db[objetivoId]) db[objetivoId] = 0;
 
-  // Botones de acción
-  if (interaction.isButton() && interaction.customId.startsWith('accion_')) {
-    const [_, accion, targetId] = interaction.customId.split('_');
-    const miembro = interaction.guild.members.cache.get(targetId);
-    if (!miembro) return;
+      if (db[ladrónId] < coste) return interaction.followUp({ content: `❌ No tienes suficientes tokens para confirmar.`, flags: 64 });
 
-    if (['silenciar', 'ensordecer'].includes(accion)) {
-      const modal = new ModalBuilder()
-        .setCustomId(`modal_${accion}_${targetId}`)
-        .setTitle(`Duración de ${accion}`);
-      const input = new TextInputBuilder().setCustomId('tiempo').setLabel('Duración en segundos').setStyle(TextInputStyle.Short).setRequired(true);
-      modal.addComponents(new ActionRowBuilder().addComponents(input));
-      await interaction.showModal(modal);
-    } else if (accion === 'desconectar') {
-      const coste = 1;
-      if (db[userId] < coste) {
-        await interaction.reply({ content: `❌ No tienes suficientes tokens.`, ephemeral: true });
-        return;
+      const miembro = await interaction.guild.members.fetch({ user: objetivoId, force: true }).catch(() => null);
+      if (!miembro) return interaction.followUp({ content: '❌ No se pudo encontrar al usuario.', flags: 64 });
+
+      db[ladrónId] -= coste;
+      const exito = Math.random() * 100 < probabilidad;
+      let resultadoMsg = '';
+      let canalGeneral = interaction.guild.channels.cache.find(c => c.name.toLowerCase().includes('general'));
+
+      if (exito) {
+        const robado = Math.min(cantidad, db[objetivoId]);
+        db[objetivoId] -= robado;
+        db[ladrónId] += robado;
+        resultadoMsg = `✅ Has logrado robar **${robado} tokens** de ${miembro.user.tag}. Te quedan ${db[ladrónId].toFixed(1)} tokens.`;
+        logAccion(client, interaction.user.tag, `Robar (${robado})`, miembro.user.tag, 0, coste);
+        if(canalGeneral) canalGeneral.send(`💰 ${interaction.user.tag} ha robado **${robado} tokens** a ${miembro.user.tag}!`);
+      } else {
+        resultadoMsg = `❌ Fallaste el robo a ${miembro.user.tag}. Perdiste **${coste} tokens**. Te quedan ${db[ladrónId].toFixed(1)} tokens.`;
+        logAccion(client, interaction.user.tag, `Intento fallido de robar (${cantidad})`, miembro.user.tag, 0, coste);
+        if(canalGeneral) canalGeneral.send(`⚠️ ${interaction.user.tag} ha intentado robar **${cantidad} tokens** a ${miembro.user.tag} pero ha fallado.`);
       }
-      const row = new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId(`confirmar_${accion}_${targetId}_0`).setLabel(`Confirmar (${coste} tokens)`).setStyle(ButtonStyle.Danger));
-      await interaction.reply({ content: `Desconectar a ${miembro.user.tag} cuesta ${coste} tokens. ¿Confirmas?`, components: [row], ephemeral: true });
-    }
-  }
-   
-// Comando /robar
-if (interaction.isChatInputCommand() && interaction.commandName === 'robar') {
-  const objetivo = interaction.options.getUser('objetivo');
-  const cantidad = interaction.options.getInteger('cantidad');
-  const ladrónId = interaction.user.id;
 
-  // Validaciones
-  if (!objetivo) return interaction.reply({ content: '❌ Usuario no válido.', ephemeral: true });
-  if (objetivo.id === ladrónId) return interaction.reply({ content: '❌ No puedes robarte a ti mismo.', ephemeral: true });
-  if (cantidad <= 0) return interaction.reply({ content: '❌ La cantidad debe ser mayor a 0.', ephemeral: true });
-
-  if (!db[ladrónId]) db[ladrónId] = 0;
-  if (!db[objetivo.id]) db[objetivo.id] = 0;
-
-  // Coste y probabilidad
-  const coste = Math.ceil(cantidad * 0.5);
-  let probExito = 70 - (cantidad * 2);
-  if (probExito < 10) probExito = 10;
-
-  if (db[ladrónId] < coste) return interaction.reply({ content: `❌ Necesitas al menos ${coste} tokens para intentar este robo.`, ephemeral: true });
-
-  // 🔹 BOTÓN DE CONFIRMACIÓN
-  const row = new ActionRowBuilder().addComponents(
-    new ButtonBuilder()
-      .setCustomId(JSON.stringify({
-        type: 'robo',
-        objetivoId: objetivo.id,
-        cantidad,
-        coste,
-        probabilidad: probExito
-      }))
-      .setLabel('Confirmar robo')
-      .setStyle(ButtonStyle.Danger)
-  );
-
-  // Enviar mensaje al usuario con botón
-  await interaction.reply({
-    content: `⚠️ Vas a intentar robar **${cantidad} tokens** a ${objetivo.tag}.\nCoste: **${coste} tokens**\nProbabilidad de éxito: **${probExito}%**\n\n¿Confirmas?`,
-    components: [row],
-    ephemeral: true
-  });
-}
-
-// 🔹 Manejo del botón de confirmación
-if (interaction.isButton()) {
-  let data;
-  try {
-    data = JSON.parse(interaction.customId);
-  } catch {
-    return interaction.update({ content: '❌ Error interno, customId inválido.', components: [], ephemeral: true });
-  }
-
-  if (data.type !== 'robo') return;
-
-  const { objetivoId, cantidad, coste, probabilidad } = data;
-  const ladrónId = interaction.user.id;
-
-  if (!db[ladrónId]) db[ladrónId] = 0;
-  if (!db[objetivoId]) db[objetivoId] = 0;
-
-  if (db[ladrónId] < coste) {
-    return interaction.update({ content: `❌ No tienes suficientes tokens para confirmar.`, components: [], ephemeral: true });
-  }
-
-  // Fetch seguro del miembro
-  let miembro;
-  try {
-    miembro = await interaction.guild.members.fetch({ user: objetivoId, force: true });
-  } catch {
-    return interaction.update({ content: '❌ No se pudo encontrar al usuario.', components: [], ephemeral: true });
-  }
-
-  if (!miembro) return interaction.update({ content: '❌ No se pudo encontrar al usuario.', components: [], ephemeral: true });
-
-  // Descontar coste
-  db[ladrónId] -= coste;
-
-  // Probabilidad de éxito
-  const exito = Math.random() * 100 < probabilidad;
-
-  let resultadoMsg = '';
-  let canalGeneral = interaction.guild.channels.cache.find(c => c.name.toLowerCase().includes('general')); // busca canal general
-
-  if (exito) {
-    const robado = Math.min(cantidad, db[objetivoId]);
-    db[objetivoId] -= robado;
-    db[ladrónId] += robado;
-
-    resultadoMsg = `✅ Has logrado robar **${robado} tokens** de ${miembro.user.tag}. (Coste ${coste} tokens). Te quedan ${db[ladrónId].toFixed(1)} tokens.`;
-
-    // Log en canal de logs
-    await logAccion(client, interaction.user.tag, `Robar (${robado})`, miembro.user.tag, 0, coste);
-
-    // Mensaje en general
-    if(canalGeneral) {
-      canalGeneral.send(`💰 ${interaction.user.tag} ha robado **${robado} tokens** a ${miembro.user.tag}!`);
-    }
-
-  } else {
-    resultadoMsg = `❌ Fallaste el robo a ${miembro.user.tag}. Perdiste **${coste} tokens**. Te quedan ${db[ladrónId].toFixed(1)} tokens.`;
-
-    // Log en canal de logs
-    await logAccion(client, interaction.user.tag, `Intento fallido de robar (${cantidad})`, miembro.user.tag, 0, coste);
-
-    // Mensaje en general
-    if(canalGeneral) {
-      canalGeneral.send(`⚠️ ${interaction.user.tag} ha intentado robar **${cantidad} tokens** a ${miembro.user.tag} pero ha fallado.`);
+      saveDB();
+      return interaction.followUp({ content: resultadoMsg, flags: 64 });
     }
   }
 
-  saveDB();
-  await interaction.update({ content: resultadoMsg, components: [] });
-}
-    
-  // Modales
+  // ------------------------------------------ Modales y Confirmaciones ------------------------------------------
   if (interaction.isModalSubmit() && interaction.customId.startsWith('modal_')) {
     const [_, accion, targetId] = interaction.customId.split('_');
     const miembro = interaction.guild.members.cache.get(targetId);
     const tiempo = parseInt(interaction.fields.getTextInputValue('tiempo'));
-    if (isNaN(tiempo) || tiempo <= 0) {
-      await interaction.reply({ content: '❌ Tiempo no válido.', ephemeral: true });
-      return;
-    }
+    if (isNaN(tiempo) || tiempo <= 0) return interaction.reply({ content: '❌ Tiempo no válido.', flags: 64 });
 
     const coste = tiempo * 0.1;
-    if (db[userId] < coste) {
-      await interaction.reply({ content: `❌ No tienes suficientes tokens. Necesitas ${coste.toFixed(1)}.`, ephemeral: true });
-      return;
-    }
+    if (db[userId] < coste) return interaction.reply({ content: `❌ No tienes suficientes tokens. Necesitas ${coste.toFixed(1)}.`, flags: 64 });
 
     const row = new ActionRowBuilder().addComponents(
       new ButtonBuilder().setCustomId(`confirmar_${accion}_${targetId}_${tiempo}`).setLabel(`Confirmar (${coste.toFixed(1)} tokens)`).setStyle(ButtonStyle.Primary)
     );
 
-    await interaction.reply({ content: `Aplicar ${accion} a ${miembro.user.tag} durante ${tiempo}s cuesta ${coste.toFixed(1)} tokens. ¿Confirmas?`, components: [row], ephemeral: true });
+    return interaction.reply({ content: `Aplicar ${accion} a ${miembro.user.tag} durante ${tiempo}s cuesta ${coste.toFixed(1)} tokens. ¿Confirmas?`, components: [row], flags: 64 });
   }
 
-  // Confirmar acción
+  // Confirmación de acción
   if (interaction.isButton() && interaction.customId.startsWith('confirmar_')) {
+    await interaction.deferUpdate().catch(() => {});
     const [_, accion, targetId, tiempoStr] = interaction.customId.split('_');
     const tiempo = parseInt(tiempoStr) || 0;
     const miembro = interaction.guild.members.cache.get(targetId);
+    const coste = accion === 'desconectar' ? 1 : tiempo * 0.1;
 
-    let coste = accion === 'desconectar' ? 1 : tiempo * 0.1;
-    if (db[userId] < coste) {
-      await interaction.reply({ content: `❌ No tienes suficientes tokens. Necesitas ${coste.toFixed(1)}.`, ephemeral: true });
-      return;
-    }
+    if (db[userId] < coste) return interaction.followUp({ content: `❌ No tienes suficientes tokens. Necesitas ${coste.toFixed(1)}.`, flags: 64 });
 
     const resultado = await aplicarEfecto(miembro, accion, tiempo);
-    if (resultado.error) {
-    await interaction.reply({ content: `❌ ${resultado.error}`, ephemeral: true });
-    return;
-   }
+    if (resultado.error) return interaction.followUp({ content: `❌ ${resultado.error}`, flags: 64 });
 
-   db[userId] -= coste;
-saveDB();
-
-// ✅ Log en canal
-await logAccion(
-  client,
-  interaction.user.tag,
-  accion,
-  miembro.user.tag,
-  tiempo,
-  coste
-);
-
-await interaction.reply({ content: `✅ Aplicaste **${accion}** a ${miembro.user.tag} durante ${tiempo || 0}s. Te quedan ${db[userId].toFixed(1)} tokens.`, ephemeral: true });
+    db[userId] -= coste;
+    saveDB();
+    logAccion(client, interaction.user.tag, accion, miembro.user.tag, tiempo, coste);
+    return interaction.followUp({ content: `✅ Aplicaste **${accion}** a ${miembro.user.tag} durante ${tiempo || 0}s. Te quedan ${db[userId].toFixed(1)} tokens.`, flags: 64 });
   }
+
 });
 
 client.login(TOKEN);
