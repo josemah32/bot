@@ -17,6 +17,7 @@ const {
   EmbedBuilder
 } = require('discord.js');
 const { createClient } = require('@supabase/supabase-js');
+const { ActivityType } = require('discord.js');
 
 const TOKEN = process.env.DISCORD_TOKEN;
 const CLIENT_ID = process.env.CLIENT_ID;
@@ -141,30 +142,27 @@ app.post('/send-tokens', async (req, res) => {
 
 app.post('/set-bot-status', async (req, res) => {
   try {
+    if (!client.isReady()) return res.status(500).send('Bot no listo');
     const { type, name, status } = req.body;
-
-    // Validar datos
     if (!type || !name || !status) return res.status(400).send('Datos incompletos');
 
-    // Mapear el tipo a ActivityType de Discord.js
     const activityTypeMap = {
-      PLAYING: 'Playing',
-      WATCHING: 'Watching',
-      LISTENING: 'Listening',
-      STREAMING: 'Streaming',
-      COMPETING: 'Competing'
+      PLAYING: ActivityType.Playing,
+      WATCHING: ActivityType.Watching,
+      LISTENING: ActivityType.Listening,
+      STREAMING: ActivityType.Streaming,
+      COMPETING: ActivityType.Competing
     };
 
-    // Cambiar estado y actividad
     await client.user.setPresence({
-      activities: [{ name, type: activityTypeMap[type] || 'Playing' }],
+      activities: [{ name, type: activityTypeMap[type] || ActivityType.Playing }],
       status
     });
 
-    return res.status(200).send('Estado del bot actualizado');
+    res.status(200).send('✅ Estado del bot actualizado');
   } catch (err) {
     console.error('Error al cambiar estado:', err);
-    return res.status(500).send('Error interno');
+    res.status(500).send('❌ Error interno');
   }
 });
 
