@@ -237,11 +237,22 @@ const rest = new REST({ version: '10' }).setToken(TOKEN);
 /* -------------------- Eventos: messageCreate (ahora async) -------------------- */
 client.on('messageCreate', async message => {
   if (message.author.bot) return;
-  const id = message.author.id;
-  try {
-    await changeTokens(id, +1); // suma 1 token por mensaje
-  } catch (err) {
-    console.error('messageCreate changeTokens error:', err);
+  const userId = message.author.id;
+  const cantidad = 1; // tokens por mensaje
+
+  if (pool) {
+    // Guardar en Postgres
+    await pool.query(`
+      INSERT INTO users_tokens (user_id, tokens)
+      VALUES ($1, $2)
+      ON CONFLICT (user_id)
+      DO UPDATE SET tokens = users_tokens.tokens + $2
+    `, [userId, cantidad]);
+  } else {
+    // Fallback a db.json si no hay Postgres
+    if (!db[userId]) db[userId] = 0;
+    db[userId] += cantidad;
+    saveDB();
   }
 });
 
