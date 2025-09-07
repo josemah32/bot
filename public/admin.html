@@ -3,102 +3,164 @@
 <head>
 <meta charset="UTF-8">
 <title>Panel Admin</title>
-<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
-<link rel="icon" type="image/png" sizes="192x192" href="/favicon-96x96.png">
-<link rel="icon" type="image/png" sizes="512x512" href="/favicon-512x512.png">
-<link rel="manifest" href="/site.webmanifest">
-<link rel="shortcut icon" href="/favicon.ico">
 <style>
-body {
+html, body {
+  height: 100%;
+  margin: 0;
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
   background: linear-gradient(to right, #74ebd5, #ACB6E5);
-  min-height: 100vh;
-  margin:0;
-  display:flex;
-  justify-content:center;
-  align-items:flex-start;
-  padding:30px 0;
+}
+
+body {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 20px;
 }
 
 .container {
-  background:white;
-  padding:30px;
-  border-radius:15px;
+  background: white;
+  padding: 30px;
+  border-radius: 15px;
   box-shadow: 0 8px 20px rgba(0,0,0,0.3);
-  width:90%;
-  max-width:600px;
+  width: 90%;
+  max-width: 600px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  max-height: 100vh;
+  overflow-y: auto;
 }
 
 h2 { text-align:center; margin-bottom:20px; color:#333; }
 
-input, textarea, button {
-  width:100%;
-  padding:10px;
-  margin-bottom:15px;
-  border-radius:8px;
-  border:1px solid #ccc;
-  font-size:1rem;
+input, textarea, select, button {
+  width: 100%;
+  padding: 10px;
+  margin-bottom: 15px;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+  font-size: 1rem;
 }
 
-textarea { resize:none; height:80px; }
+textarea { resize: none; height: 80px; }
 
 button {
-  background:#007BFF;
-  color:white;
-  border:none;
-  cursor:pointer;
-  transition:0.2s;
+  background: #007BFF;
+  color: white;
+  border: none;
+  cursor: pointer;
+  transition: 0.2s;
 }
 
-button:hover { background:#0056b3; }
+button:hover { background: #0056b3; }
 
 .field { display:flex; gap:10px; margin-bottom:10px; }
 .field input { flex:1; }
 
-hr { margin:30px 0; }
+.menu button { margin-bottom: 15px; }
+
+hr { margin: 30px 0; }
 </style>
 </head>
 <body>
 
 <div class="container">
-  <h2>Crear Embed</h2>
-  <form id="embedForm">
-    <input type="text" id="embedChannel" placeholder="ID del canal donde enviar">
-    <input type="text" placeholder="Título" id="embedTitle">
-    <textarea placeholder="Descripción" id="embedDescription"></textarea>
-    <input type="color" id="embedColor" value="#0099ff">
-    <input type="text" placeholder="URL Imagen" id="embedImage">
-    <input type="text" placeholder="URL Miniatura" id="embedThumbnail">
-    <input type="text" placeholder="Autor" id="embedAuthor">
-    <input type="text" placeholder="Pie de página" id="embedFooter">
 
-    <div id="fieldsContainer">
-      <h3>Campos (Fields)</h3>
-      <div class="field">
-        <input type="text" placeholder="Nombre campo" class="fieldName">
-        <input type="text" placeholder="Valor campo" class="fieldValue">
+  <!-- MENÚ PRINCIPAL -->
+  <div id="menu" class="menu">
+    <h2>Selecciona una acción</h2>
+    <button onclick="showForm('embed')">Crear Embed</button>
+    <button onclick="showForm('tokens')">Enviar Mensaje de Tokens</button>
+    <button onclick="showForm('status')">Cambiar Estado del Bot</button>
+  </div>
+
+  <!-- FORMULARIO CREAR EMBED -->
+  <div id="embedFormContainer" style="display:none; width:100%;">
+    <h2>Crear Embed</h2>
+    <form id="embedForm">
+      <input type="text" id="embedChannel" placeholder="ID del canal donde enviar">
+      <input type="text" placeholder="Título" id="embedTitle">
+      <textarea placeholder="Descripción" id="embedDescription"></textarea>
+      <input type="color" id="embedColor" value="#0099ff">
+      <input type="text" placeholder="URL Imagen" id="embedImage">
+      <input type="text" placeholder="URL Miniatura" id="embedThumbnail">
+      <input type="text" placeholder="Autor" id="embedAuthor">
+      <input type="text" placeholder="Pie de página" id="embedFooter">
+
+      <div id="fieldsContainer">
+        <h3>Campos (Fields)</h3>
+        <div class="field">
+          <input type="text" placeholder="Nombre campo" class="fieldName">
+          <input type="text" placeholder="Valor campo" class="fieldValue">
+        </div>
       </div>
-    </div>
-    <button type="button" onclick="addField()">Agregar campo</button>
-    <button type="submit">Enviar Embed</button>
-  </form>
+      <button type="button" onclick="addField()">Agregar campo</button>
+      <button type="submit">Enviar Embed</button>
+    </form>
+    <button onclick="backToMenu()" style="background:#6c757d;">⬅ Volver al menú</button>
+  </div>
 
-  <hr>
+  <!-- FORMULARIO ENVIAR TOKENS -->
+  <div id="tokensFormContainer" style="display:none; width:100%;">
+    <h2>Enviar Mensaje de Tokens</h2>
+    <form id="tokensForm">
+      <input type="number" id="cantidadTokens" placeholder="Cantidad de tokens">
+      <input type="text" id="canalTokens" placeholder="ID del canal donde enviar">
+      <input type="text" id="mensajeTokens" placeholder="Mensaje opcional">
+      <button type="submit">Enviar Mensaje de Tokens</button>
+    </form>
+    <button onclick="backToMenu()" style="background:#6c757d;">⬅ Volver al menú</button>
+  </div>
 
-  <h2>Enviar Mensaje de Tokens</h2>
-  <form id="tokensForm">
-    <input type="number" id="cantidadTokens" placeholder="Cantidad de tokens">
-    <input type="text" id="canalTokens" placeholder="ID del canal donde enviar">
-    <input type="text" id="mensajeTokens" placeholder="Mensaje opcional">
-    <button type="submit">Enviar Mensaje de Tokens</button>
-  </form>
-    <button type="button" onclick="window.location.href='index.html'" 
-        style="margin-top:20px; width:100%; padding:12px; font-size:1rem; border:none; border-radius:8px; background:#6c757d; color:white; cursor:pointer; transition:0.2s;">
-  ⬅ Volver
-</button>
+  <!-- FORMULARIO CAMBIAR ESTADO DEL BOT -->
+  <div id="statusFormContainer" style="display:none; width:100%;">
+    <h2>Cambiar Estado del Bot</h2>
+    <form id="statusForm">
+      <label>Tipo de actividad:</label>
+      <select id="activityType">
+        <option value="PLAYING">Jugando</option>
+        <option value="WATCHING">Viendo</option>
+        <option value="LISTENING">Escuchando</option>
+        <option value="STREAMING">Streaming</option>
+        <option value="COMPETING">Compitiendo</option>
+      </select>
+      <input type="text" id="activityName" placeholder="Nombre de la actividad">
+
+      <label>Estado del bot:</label>
+      <select id="botStatus">
+        <option value="online">En línea</option>
+        <option value="idle">Ausente</option>
+        <option value="dnd">No molestar</option>
+        <option value="invisible">Invisible</option>
+      </select>
+
+      <button type="submit">Actualizar Estado</button>
+    </form>
+    <button onclick="backToMenu()" style="background:#6c757d;">⬅ Volver al menú</button>
+  </div>
+
 </div>
 
 <script>
+function showForm(form) {
+  document.getElementById('menu').style.display = 'none';
+  document.getElementById('embedFormContainer').style.display = 'none';
+  document.getElementById('tokensFormContainer').style.display = 'none';
+  document.getElementById('statusFormContainer').style.display = 'none';
+
+  if(form === 'embed') document.getElementById('embedFormContainer').style.display = 'block';
+  if(form === 'tokens') document.getElementById('tokensFormContainer').style.display = 'block';
+  if(form === 'status') document.getElementById('statusFormContainer').style.display = 'block';
+}
+
+function backToMenu() {
+  document.getElementById('menu').style.display = 'block';
+  document.getElementById('embedFormContainer').style.display = 'none';
+  document.getElementById('tokensFormContainer').style.display = 'none';
+  document.getElementById('statusFormContainer').style.display = 'none';
+}
+
 function addField() {
   const container = document.getElementById('fieldsContainer');
   const div = document.createElement('div');
@@ -108,6 +170,9 @@ function addField() {
   container.appendChild(div);
 }
 
+// EVENTOS DE FORMULARIOS
+
+// Embed
 document.getElementById('embedForm').addEventListener('submit', async e => {
   e.preventDefault();
   const embedData = {
@@ -136,6 +201,7 @@ document.getElementById('embedForm').addEventListener('submit', async e => {
   else alert('Error al enviar embed');
 });
 
+// Tokens
 document.getElementById('tokensForm').addEventListener('submit', async e => {
   e.preventDefault();
   const data = {
@@ -150,6 +216,25 @@ document.getElementById('tokensForm').addEventListener('submit', async e => {
   });
   if(res.ok) alert('Mensaje de tokens enviado!');
   else alert('Error al enviar mensaje');
+});
+
+// Estado del bot
+document.getElementById('statusForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  const data = {
+    type: document.getElementById('activityType').value,
+    name: document.getElementById('activityName').value,
+    status: document.getElementById('botStatus').value
+  };
+
+  const res = await fetch('/set-bot-status', {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify(data)
+  });
+
+  if(res.ok) alert('Estado del bot actualizado!');
+  else alert('Error al actualizar el estado');
 });
 </script>
 
