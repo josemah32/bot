@@ -31,17 +31,80 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const HOST = '0.0.0.0';
 
+// Servir archivos estáticos desde la carpeta public
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.json());
 
-app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
-app.get('/login', (req, res) => res.sendFile(path.join(__dirname, 'public', 'login.html')));
-app.get('/admin', (req, res) => {
-    if(req.query.pass !== ADMIN_PASSWORD) return res.status(403).send('❌ Acceso denegado');
-    res.sendFile(path.join(__dirname, 'public', 'admin.html'));
+// Rutas
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-app.listen(PORT, HOST, () => console.log(`Servidor corriendo en http://${HOST}:${PORT}`));
+app.get('/login', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'login.html'));
+});
+
+app.get('/admin', (req, res) => {
+  const pass = req.query.pass;
+  if(pass !== ADMIN_PASSWORD) return res.status(403).send('❌ Acceso denegado');
+  res.sendFile(path.join(__dirname, 'public', 'admin.html'));
+});
+
+// Ruta POST para enviar embeds
+app.post('/send-embed', async (req, res) => {
+  try {
+    const { channelId, title, description, color, image, thumbnail, author, footer, fields } = req.body;
+
+    if (!channelId) return res.status(400).send('❌ No se proporcionó un ID de canal');
+
+    const channel = await client.channels.fetch(channelId).catch(() => null);
+    if (!channel || !channel.isTextBased()) 
+      return res.status(400).send('❌ Canal inválido o el bot no tiene acceso');
+
+    const embed = new EmbedBuilder();
+    if (title) embed.setTitle(title);
+    if (description) embed.setDescription(description);
+    embed.setColor(color ? parseInt(color.replace('#', ''), 16) : 0x0099ff);
+    if (image) embed.setImage(image);
+    if (thumbnail) embed.setThumbnail(thumbnail);
+    if (author) embed.setAuthor({ name: author });
+    if (footer) embed.setFooter({ text: footer });
+    if (fields?.length) embed.addFields(fields.map(f => ({ name: f.name, value: f.value })));
+
+    await channel.send({ embeds: [embed] });
+
+    res.status(200).send('✅ Embed enviado correctamente');
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('❌ Error al enviar el embed');
+  }
+});
+
+// Ruta POST para enviar mensaje con tokens
+app.post('/send-tokens', async (req, res) => {
+  try {
+    const { cantidad, canalId, mensaje } = req.body;
+    const channel = await client.channels.fetch(canalId);
+
+    const boton = new ButtonBuilder()
+      .setCustomId(`claim_tokens_${cantidad}`)
+      .setLabel(`¡Reclamar ${cantidad} tokens!`)
+      .setStyle(ButtonStyle.Primary);
+
+    const row = new ActionRowBuilder().addComponents(boton);
+
+    await channel.send({ content: mensaje || `Haz click para reclamar ${cantidad} tokens!`, components: [row] });
+
+    res.status(200).send('Mensaje de tokens enviado');
+  } catch(err) {
+    console.error(err);
+    res.status(500).send('Error al enviar mensaje de tokens');
+  }
+});
+
+app.listen(PORT, HOST, () => {
+  console.log(`Servidor corriendo en http://${HOST}:${PORT}`);
+});
 
 ////////////////////////////////////////////BOT///////////////////////////////////////////////////////////
 
