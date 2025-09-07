@@ -52,16 +52,15 @@ app.get('/login', (req, res) => {
 app.use(express.json());
 
 app.post('/set-bot-status', async (req, res) => {
-  const { type, name, status } = req.body;
-
-  try {
-    client.user.setActivity(name, { type }); // Cambia la actividad
-    client.user.setStatus(status); // Cambia el estado
-    res.sendStatus(200);
-  } catch (err) {
-    console.error(err);
-    res.sendStatus(500);
-  }
+    const { type, name, status } = req.body;
+    try {
+        client.user.setActivity(name, { type });
+        client.user.setStatus(status);
+        res.sendStatus(200);
+    } catch(err) {
+        console.error(err);
+        res.sendStatus(500);
+    }
 });
 
 app.post('/send-embed', async (req, res) => {
@@ -157,8 +156,7 @@ const client = new Client({
 });
 
 client.once('ready', () => {
-  console.log(`Conectado como ${client.user.tag}`);
-  // Aquí NO va app.post ni nada más
+    console.log(`Conectado como ${client.user.tag}`);
 });
 
   try {
