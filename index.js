@@ -274,7 +274,33 @@ client.on('interactionCreate', async interaction => {
 
         return await safeReply(interaction, { content: 'Selecciona un usuario para aplicar acción:', components: [new ActionRowBuilder().addComponents(select)], flags: EPHEMERAL });
       }
+         // -------------------- Botón Reclamar Tokens --------------------
+if (interaction.isButton() && interaction.customId.startsWith('claim_tokens_')) {
+  const cantidad = parseInt(interaction.customId.split('_')[2]) || 0;
 
+  // Sumar tokens al usuario
+  await changeTokens(interaction.user.id, cantidad);
+
+  // Mensaje al usuario (efímero)
+  await interaction.reply({ 
+    content: `✅ Has reclamado **${cantidad} tokens**. Ahora tienes ${await getTokens(interaction.user.id)} tokens.`,
+    ephemeral: true
+  });
+
+  // Anuncio en el canal
+  if (interaction.channel) {
+    await interaction.channel.send(`💰 **${interaction.user.username}** ha reclamado **${cantidad} tokens**!`);
+  }
+
+  // Desactivar el botón para que no lo use otro
+  try {
+    const row = ActionRowBuilder.from(interaction.message.components[0]);
+    row.components[0].setDisabled(true);
+    await interaction.message.edit({ components: [row] });
+  } catch (e) {
+    console.error('Error al desactivar botón:', e);
+  }
+}
       if (interaction.commandName === 'robar') {
         const objetivo = interaction.options.getUser('objetivo');
         const cantidad = interaction.options.getInteger('cantidad');
