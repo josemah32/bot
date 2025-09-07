@@ -87,6 +87,79 @@ app.get('/admin', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'admin.html'));
 });
 
+app.post('/send-embed', async (req, res) => {
+  try {
+    const { channelId, title, description, color, image, thumbnail, author, footer, fields } = req.body;
+    if (!channelId) return res.status(400).send('❌ No se proporcionó un ID de canal');
+
+    const channel = await client.channels.fetch(channelId).catch(() => null);
+    if (!channel || !channel.isTextBased()) return res.status(400).send('❌ Canal inválido o el bot no tiene acceso');
+
+    const embed = new EmbedBuilder();
+    if (title) embed.setTitle(title);
+    if (description) embed.setDescription(description);
+    embed.setColor(color ? parseInt(color.replace('#', ''), 16) : 0x0099ff);
+    if (image) embed.setImage(image);
+    if (thumbnail) embed.setThumbnail(thumbnail);
+    if (author) embed.setAuthor({ name: author });
+    if (footer) embed.setFooter({ text: footer });
+    if (fields?.length) embed.addFields(fields.map(f => ({ name: f.name, value: f.value })));
+
+    await channel.send({ embeds: [embed] });
+    res.status(200).send('✅ Embed enviado correctamente');
+  } catch (err) {
+    console.error('Error send-embed:', err);
+    res.status(500).send('❌ Error al enviar el embed');
+  }
+});
+
+app.post('/send-tokens', async (req, res) => {
+  try {
+    const { cantidad, canalId, mensaje } = req.body;
+    const channel = await client.channels.fetch(canalId);
+    const boton = new ButtonBuilder()
+      .setCustomId(`claim_tokens_${cantidad}`)
+      .setLabel(`¡Reclamar ${cantidad} tokens!`)
+      .setStyle(ButtonStyle.Primary);
+    const row = new ActionRowBuilder().addComponents(boton);
+    await channel.send({ content: mensaje || `Haz click para reclamar ${cantidad} tokens!`, components: [row] });
+    res.status(200).send('Mensaje de tokens enviado');
+  } catch (err) {
+    console.error('Error send-tokens:', err);
+    res.status(500).send('Error al enviar mensaje de tokens');
+  }
+});
+
+
+app.post('/set-bot-status', async (req, res) => {
+  try {
+    const { type, name, status } = req.body;
+
+    // Validar datos
+    if (!type || !name || !status) return res.status(400).send('Datos incompletos');
+
+    // Mapear el tipo a ActivityType de Discord.js
+    const activityTypeMap = {
+      PLAYING: 'Playing',
+      WATCHING: 'Watching',
+      LISTENING: 'Listening',
+      STREAMING: 'Streaming',
+      COMPETING: 'Competing'
+    };
+
+    // Cambiar estado y actividad
+    await client.user.setPresence({
+      activities: [{ name, type: activityTypeMap[type] || 'Playing' }],
+      status
+    });
+
+    return res.status(200).send('Estado del bot actualizado');
+  } catch (err) {
+    console.error('Error al cambiar estado:', err);
+    return res.status(500).send('Error interno');
+  }
+});
+
 app.listen(PORT, HOST, () => console.log(`Servidor corriendo en http://${HOST}:${PORT}`));
 
 // -------------------- Discord Bot --------------------
