@@ -224,7 +224,7 @@ client.on('messageCreate', async message => {
   }
 });
 
-client.on('interactionCreate', async interaction => {
+client.on('interactionCreate', async (interaction) => {
   const userId = interaction.user?.id;
 
   async function safeReply(inter, options) {
@@ -232,7 +232,9 @@ client.on('interactionCreate', async interaction => {
       if (!inter) return null;
       if (inter.replied || inter.deferred) return await inter.followUp(options).catch(console.error);
       return await inter.reply(options).catch(console.error);
-    } catch (e) { console.error('safeReply error:', e); }
+    } catch (e) {
+      console.error('safeReply error:', e);
+    }
   }
 
   try {
@@ -255,7 +257,7 @@ client.on('interactionCreate', async interaction => {
 - Coste de acciones: 🔇 Silenciar → 0.1 tokens * segundos, 🔈 Ensordecer → 0.1 tokens * segundos, ❌ Desconectar → 1 token
 - Comandos: /tokens, /admin, /info
           `,
-          flags: EPHEMERAL
+          flags: EPHEMERAL,
         });
       }
 
@@ -263,27 +265,30 @@ client.on('interactionCreate', async interaction => {
         const tokensUser = await getTokens(userId);
         if (tokensUser < 1) return await safeReply(interaction, { content: '❌ Necesitas al menos 1 token para usar admin.', flags: EPHEMERAL });
 
-        const miembrosVC = (await interaction.guild.members.fetch()).filter(m => m.voice.channel && m.id !== userId);
+        const miembrosVC = (await interaction.guild.members.fetch()).filter((m) => m.voice.channel && m.id !== userId);
         if (!miembrosVC.size) return await safeReply(interaction, { content: '❌ No hay miembros en canales de voz.', flags: EPHEMERAL });
 
-        await interaction.deferReply({ flags: EPHEMERAL }).catch(()=>{});
+        await interaction.deferReply({ flags: EPHEMERAL }).catch(() => {});
         const select = new StringSelectMenuBuilder()
           .setCustomId('select_member')
           .setPlaceholder('Selecciona un usuario')
-          .addOptions(miembrosVC.map(m => ({ label: m.user.username, value: m.id })));
+          .addOptions(miembrosVC.map((m) => ({ label: m.user.username, value: m.id })));
 
         return await safeReply(interaction, { content: 'Selecciona un usuario para aplicar acción:', components: [new ActionRowBuilder().addComponents(select)], flags: EPHEMERAL });
-      }      
+      }
+    }
 
     // -------------------- Selecciones --------------------
     if (interaction.isStringSelectMenu() && interaction.customId === 'select_member') {
       const targetId = interaction.values[0];
-      const miembro = await interaction.guild.members.fetch(targetId).catch(()=>null);
+      const miembro = await interaction.guild.members.fetch(targetId).catch(() => null);
       if (!miembro || !miembro.voice.channel) return await safeReply(interaction, { content: '❌ Usuario no válido o no está en VC.', flags: EPHEMERAL });
 
       const acciones = ['silenciar', 'ensordecer', 'desconectar'];
       const botones = new ActionRowBuilder().addComponents(
-        acciones.map(a => new ButtonBuilder().setCustomId(`accion_${a}_${targetId}`).setLabel(a.charAt(0).toUpperCase() + a.slice(1)).setStyle(ButtonStyle.Primary))
+        acciones.map((a) =>
+          new ButtonBuilder().setCustomId(`accion_${a}_${targetId}`).setLabel(a.charAt(0).toUpperCase() + a.slice(1)).setStyle(ButtonStyle.Primary)
+        )
       );
 
       return await safeReply(interaction, { content: `Usuario seleccionado: ${miembro.user.tag}. Elige acción:`, components: [botones], flags: EPHEMERAL });
@@ -293,10 +298,9 @@ client.on('interactionCreate', async interaction => {
     if (interaction.isButton()) {
       const custom = interaction.customId;
 
-      // accion_xxx -> mostrar modal o confirmar
       if (custom.startsWith('accion_')) {
         const [_, accion, targetId] = custom.split('_');
-        const miembro = await interaction.guild.members.fetch(targetId).catch(()=>null);
+        const miembro = await interaction.guild.members.fetch(targetId).catch(() => null);
         if (!miembro) return await safeReply(interaction, { content: '❌ Usuario no encontrado.', flags: EPHEMERAL });
 
         if (['silenciar', 'ensordecer'].includes(accion)) {
@@ -315,18 +319,19 @@ client.on('interactionCreate', async interaction => {
         }
       }
 
-      // confirmar_* -> cobrar y aplicar
       if (custom.startsWith('confirmar_')) {
         const [_, accion, targetId, costeStr] = custom.split('_');
         const coste = Number(costeStr) || 0;
         const tokensUser = await getTokens(userId);
         if (tokensUser < coste) return await safeReply(interaction, { content: '❌ No tienes suficientes tokens.', flags: EPHEMERAL });
 
-        const miembro = await interaction.guild.members.fetch(targetId).catch(()=>null);
+        const miembro = await interaction.guild.members.fetch(targetId).catch(() => null);
         if (!miembro) return await safeReply(interaction, { content: '❌ Usuario no encontrado.', flags: EPHEMERAL });
 
         await changeTokens(userId, -coste);
-        try { await aplicarEfecto(miembro, accion); } catch (err) {
+        try {
+          await aplicarEfecto(miembro, accion);
+        } catch (err) {
           console.error(err);
           await changeTokens(userId, coste);
           return await safeReply(interaction, { content: '❌ No se pudo aplicar la acción.', flags: EPHEMERAL });
@@ -340,19 +345,26 @@ client.on('interactionCreate', async interaction => {
           } catch {
             return await safeReply(interaction, { content: `✅ ${miembro.user.tag} ha sido ${accion} (-${coste} tokens).`, flags: EPHEMERAL });
           }
-        } else return await safeReply(interaction, { content: `✅ ${miembro.user.tag} ha sido ${accion} (-${coste} tokens).`, flags: EPHEMERAL });
+        } else {
+          return await safeReply(interaction, { content: `✅ ${miembro.user.tag} ha sido ${accion} (-${coste} tokens).`, flags: EPHEMERAL });
+        }
       }
 
       // ROBO
       let data;
-      try { data = JSON.parse(custom); } catch { data = null; }
+      try {
+        data = JSON.parse(custom);
+      } catch {
+        data = null;
+      }
+
       if (data && data.type === 'robo') {
         const { objetivoId, cantidad, coste, probabilidad } = data;
         const tokensUser = await getTokens(userId);
         if (tokensUser < coste) return await safeReply(interaction, { content: '❌ No tienes suficientes tokens.', flags: EPHEMERAL });
 
         const objetivoTokens = await getTokens(objetivoId);
-        const miembro = await interaction.guild.members.fetch(objetivoId).catch(()=>null);
+        const miembro = await interaction.guild.members.fetch(objetivoId).catch(() => null);
         if (!miembro) return await safeReply(interaction, { content: '❌ Usuario no encontrado.', flags: EPHEMERAL });
 
         await changeTokens(userId, -coste);
@@ -378,7 +390,7 @@ client.on('interactionCreate', async interaction => {
       }
     }
 
-    // MODALES
+    // -------------------- Modales --------------------
     if (interaction.isModalSubmit()) {
       const parts = interaction.customId?.split('_') || [];
       if (parts[0] === 'modal') {
@@ -390,13 +402,15 @@ client.on('interactionCreate', async interaction => {
         if (tokensUser < coste) return await safeReply(interaction, { content: `❌ Necesitas ${coste.toFixed(1)} tokens.`, flags: EPHEMERAL });
 
         await changeTokens(userId, -coste);
-        const miembro = await interaction.guild.members.fetch(targetId).catch(()=>null);
+        const miembro = await interaction.guild.members.fetch(targetId).catch(() => null);
         if (!miembro) {
           await changeTokens(userId, coste);
           return await safeReply(interaction, { content: '❌ Usuario no encontrado.', flags: EPHEMERAL });
         }
 
-        try { await aplicarEfecto(miembro, accion, tiempo); } catch (err) {
+        try {
+          await aplicarEfecto(miembro, accion, tiempo);
+        } catch (err) {
           console.error(err);
           await changeTokens(userId, coste);
           return await safeReply(interaction, { content: '❌ No se pudo aplicar la acción.', flags: EPHEMERAL });
@@ -406,14 +420,15 @@ client.on('interactionCreate', async interaction => {
         return await safeReply(interaction, { content: `✅ ${accion} aplicado a ${miembro.user.tag} por ${tiempo}s (-${coste.toFixed(1)} tokens).`, flags: EPHEMERAL });
       }
     }
-
   } catch (err) {
     console.error(err);
     if (interaction) {
       try {
         if (!interaction.replied && !interaction.deferred) await interaction.reply({ content: '❌ Error interno.', flags: EPHEMERAL });
         else await interaction.followUp({ content: '❌ Error interno.', flags: EPHEMERAL });
-      } catch (e) { console.error(e); }
+      } catch (e) {
+        console.error(e);
+      }
     }
   }
 });
