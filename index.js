@@ -112,6 +112,7 @@ client.on('messageCreate', async message => {
   if (message.author.bot) return; // Ignorar mensajes de bots
   await changeTokens(message.author.id, 1); // +1 token por mensaje
   console.log(`[TOKENS] ${message.author.tag} +1`);
+}); // <-- cerrar paréntesis y llave
 
 // -------------------- Comandos --------------------
 const commands = [
