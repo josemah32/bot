@@ -47,9 +47,8 @@ async function getTokens(userId) {
 }
 
 async function changeTokens(userId, amount) {
-  const numericUserId = Number(userId);
   const { error } = await supabase.rpc('increment_tokens', {
-    uid: numericUserId,
+    uid: userId, // PASA COMO STRING
     delta: amount
   });
 
