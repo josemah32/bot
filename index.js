@@ -290,7 +290,6 @@ client.on('interactionCreate', async interaction => {
     return;
   }
 
-  // ------------------- BOTONES -------------------
 // ------------------- BOTONES -------------------
 if (interaction.isButton()) {
   const userId = interaction.user.id;
@@ -317,10 +316,16 @@ if (interaction.isButton()) {
     } else if (accion === 'desconectar') {
       await interaction.deferUpdate();
       const coste = 1;
+      
       if (db[userId] < coste) {
-        await interaction.followUp({ content: `❌ No tienes suficientes tokens.`, flags: 64 });
+      // Responder de forma ephemeral sin error
+        await interaction.reply({ content: `❌ No tienes suficientes tokens.`, flags: 64 });
         return;
       }
+
+     // Para confirmar desconexión y actualizar el mensaje original:
+     await aplicarEfecto(miembro, 'desconectar');
+     await interaction.update({ content: `✅ ${miembro.user.tag} ha sido desconectado`, components: [] });
 
       const confirmRow = new ActionRowBuilder().addComponents(
         new ButtonBuilder()
