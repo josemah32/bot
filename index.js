@@ -30,25 +30,10 @@ const SUPABASE_KEY = process.env.SUPABASE_KEY;
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // Funciones de tokens
-async function getTokens(userId) {
-  const { data, error } = await supabase
-    .from('users_tokens')
-    .select('tokens')
-    .eq('user_id', userId) // PASAMOS STRING
-    .maybeSingle();
-
-  if (error) {
-    console.error('getTokens error:', error);
-    return 0;
-  }
-
-  return Number(data?.tokens || 0);
-}
-
+// Sumar/restar tokens
 async function changeTokens(userId, amount) {
-  // PASAMOS EL ID COMO STRING
   const { error } = await supabase.rpc('increment_tokens', {
-    uid: userId,
+    uid: userId, // PASAR SIEMPRE COMO STRING
     delta: amount
   });
 
@@ -59,10 +44,26 @@ async function changeTokens(userId, amount) {
   return true;
 }
 
+// Obtener tokens
+async function getTokens(userId) {
+  const { data, error } = await supabase
+    .from('users_tokens')
+    .select('tokens')
+    .eq('user_id', userId) // STRING
+    .maybeSingle();
+
+  if (error) {
+    console.error('getTokens error:', error);
+    return 0;
+  }
+
+  return Number(data?.tokens || 0);
+}
+
+// Fijar tokens
 async function setTokens(userId, value) {
-  const numericUserId = Number(userId);
   const { error } = await supabase.from('users_tokens').upsert(
-    { user_id: numericUserId, tokens: value },
+    { user_id: userId, tokens: value },
     { onConflict: 'user_id' }
   );
 
@@ -106,6 +107,11 @@ process.on('uncaughtException', console.error);
 client.on('error', console.error);
 
 client.once('ready', () => console.log(`Conectado como ${client.user.tag}`));
+
+client.on('messageCreate', async message => {
+  if (message.author.bot) return; // Ignorar mensajes de bots
+  await changeTokens(message.author.id, 1); // +1 token por mensaje
+  console.log(`[TOKENS] ${message.author.tag} +1`);
 
 // -------------------- Comandos --------------------
 const commands = [
