@@ -15,7 +15,8 @@ const {
   ModalBuilder,
   TextInputBuilder,
   TextInputStyle,
-  EmbedBuilder
+  EmbedBuilder,
+  InteractionResponseFlags
 } = require('discord.js');
 
 const TOKEN = process.env.DISCORD_TOKEN;
@@ -47,12 +48,8 @@ app.listen(PORT, HOST, () => console.log(`Servidor corriendo en http://${HOST}:$
 let db = {};
 const DB_FILE = './db.json';
 if(fs.existsSync(DB_FILE)) {
-  try {
-    db = JSON.parse(fs.readFileSync(DB_FILE));
-  } catch (err) {
-    console.error('Error leyendo db.json:', err);
-    db = {};
-  }
+  try { db = JSON.parse(fs.readFileSync(DB_FILE)); } 
+  catch (err) { console.error('Error leyendo db.json:', err); db = {}; }
 }
 function saveDB(){ fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2)); }
 
@@ -89,9 +86,7 @@ async function logAccion(client, usuario, accion, target, duracion, coste) {
       .setTimestamp();
 
     await canalLogs.send({ embeds: [embed] });
-  } catch (err) {
-    console.error("Error enviando log:", err);
-  }
+  } catch (err) { console.error("Error enviando log:", err); }
 }
 
 async function aplicarEfecto(member, efecto, duracion = 30) {
@@ -103,23 +98,16 @@ async function aplicarEfecto(member, efecto, duracion = 30) {
         await member.voice.setMute(true);
         setTimeout(() => member.voice.setMute(false), duracion * 1000);
         return { success: true };
-
       case 'ensordecer':
         await member.voice.setDeaf(true);
         setTimeout(() => member.voice.setDeaf(false), duracion * 1000);
         return { success: true };
-
       case 'desconectar':
         await member.voice.disconnect();
         return { success: true };
-
-      default:
-        return { error: 'Acción desconocida.' };
+      default: return { error: 'Acción desconocida.' };
     }
-  } catch (err) {
-    console.error('Error aplicando efecto:', err);
-    return { error: 'Ocurrió un error al aplicar el efecto.' };
-  }
+  } catch (err) { console.error('Error aplicando efecto:', err); return { error: 'Ocurrió un error al aplicar el efecto.' }; }
 }
 
 ///////////////////////////////////// COMANDOS /////////////////////////////////////
@@ -137,9 +125,7 @@ const commands = [
 ];
 
 const rest = new REST({ version: '10' }).setToken(TOKEN);
-(async () => {
-  await rest.put(Routes.applicationGuildCommands(CLIENT_ID, GUILD_ID), { body: commands });
-})();
+(async () => { await rest.put(Routes.applicationGuildCommands(CLIENT_ID, GUILD_ID), { body: commands }); })();
 
 ///////////////////////////////////// EVENTOS /////////////////////////////////////
 
@@ -160,7 +146,6 @@ client.on('interactionCreate', async interaction => {
       await interaction.reply({ content: `💰 Tienes ${db[userId] || 0} tokens.`, flags: 64 });
       return;
     }
-
     if (interaction.commandName === 'info') {
       const infoMsg = `
 📖 **Sistema de Tokens**
@@ -171,16 +156,13 @@ client.on('interactionCreate', async interaction => {
       await interaction.reply({ content: infoMsg, flags: 64 });
       return;
     }
-
     if (interaction.commandName === 'admin') {
       if (!db[userId] || db[userId] < 1) {
         await interaction.reply({ content: '❌ Necesitas al menos 1 token para usar admin.', flags: 64 });
         return;
       }
 
-      const miembrosVC = (await interaction.guild.members.fetch())
-        .filter(m => m.voice.channel && m.id !== userId);
-
+      const miembrosVC = (await interaction.guild.members.fetch()).filter(m => m.voice.channel && m.id !== userId);
       if (!miembrosVC.size) {
         await interaction.reply({ content: '❌ No hay miembros en canales de voz.', flags: 64 });
         return;
@@ -193,11 +175,7 @@ client.on('interactionCreate', async interaction => {
         .setPlaceholder('Selecciona un usuario')
         .addOptions(miembrosVC.map(m => ({ label: m.user.username, value: m.id })));
 
-      await interaction.followUp({
-        content: 'Selecciona un usuario para aplicar acción:',
-        components: [new ActionRowBuilder().addComponents(select)],
-        ephemeral: true
-      });
+      await interaction.followUp({ content: 'Selecciona un usuario para aplicar acción:', components: [new ActionRowBuilder().addComponents(select)], flags: 64 });
       return;
     }
 
@@ -221,23 +199,17 @@ client.on('interactionCreate', async interaction => {
           .setStyle(ButtonStyle.Danger)
       );
 
-      await interaction.reply({
-        content: `⚠️ Vas a intentar robar **${cantidad} tokens** a ${objetivo.tag}.\nCoste: **${coste} tokens**\nProbabilidad de éxito: **${probabilidad}%**\n\n¿Confirmas?`,
-        components: [row],
-        flags: 64
-      });
+      await interaction.reply({ content: `⚠️ Vas a intentar robar **${cantidad} tokens** a ${objetivo.tag}.\nCoste: **${coste} tokens**\nProbabilidad de éxito: **${probabilidad}%**\n\n¿Confirmas?`, components: [row], flags: 64 });
       return;
     }
   }
 
   // ------------------- MENÚ DE SELECCIÓN -------------------
   if (interaction.isStringSelectMenu() && interaction.customId === 'select_member') {
-    await interaction.deferUpdate();
-
     const targetId = interaction.values[0];
     const miembro = interaction.guild.members.cache.get(targetId);
     if (!miembro || !miembro.voice.channel) {
-      await interaction.followUp({ content: '❌ Usuario no válido o no está en VC.', ephemeral: true });
+      await interaction.reply({ content: '❌ Usuario no válido o no está en VC.', flags: 64 });
       return;
     }
 
@@ -251,38 +223,50 @@ client.on('interactionCreate', async interaction => {
       )
     );
 
-    await interaction.followUp({ content: `Usuario seleccionado: ${miembro.user.tag}. Elige acción:`, components: [botones], ephemeral: true });
+    await interaction.reply({ content: `Usuario seleccionado: ${miembro.user.tag}. Elige acción:`, components: [botones], flags: 64 });
     return;
   }
 
   // ------------------- BOTONES -------------------
-if (interaction.isButton()) {
+  if (interaction.isButton()) {
+    const userId = interaction.user.id;
 
-    // ------------------- CONFIRMAR ACCIONES -------------------
-    if (interaction.customId.startsWith('confirmar_')) {
-      const [_, accion, targetId, tiempoStr] = interaction.customId.split('_');
-      const tiempo = parseInt(tiempoStr) || 0;
+    if (interaction.customId.startsWith('accion_')) {
+      const [_, accion, targetId] = interaction.customId.split('_');
       const miembro = interaction.guild.members.cache.get(targetId);
       if (!miembro) return;
 
-      const coste = accion === 'desconectar' ? 1 : tiempo * 0.1;
-      if (db[userId] < coste) {
-        await interaction.followUp({ content: `❌ No tienes suficientes tokens. Necesitas ${coste.toFixed(1)}.`, ephemeral: true });
-        return;
+      if (['silenciar', 'ensordecer'].includes(accion)) {
+        const modal = new ModalBuilder()
+          .setCustomId(`modal_${accion}_${targetId}`)
+          .setTitle(`Duración de ${accion}`);
+
+        const input = new TextInputBuilder()
+          .setCustomId('tiempo')
+          .setLabel('Duración en segundos')
+          .setStyle(TextInputStyle.Short)
+          .setRequired(true);
+
+        modal.addComponents(new ActionRowBuilder().addComponents(input));
+        // MOSTRAR MODAL DIRECTO, sin deferUpdate
+        await interaction.showModal(modal);
+      } else if (accion === 'desconectar') {
+        await interaction.deferUpdate(); // sí usar deferUpdate porque no hay modal
+        const coste = 1;
+        if (db[userId] < coste) {
+          await interaction.followUp({ content: `❌ No tienes suficientes tokens.`, flags: 64 });
+          return;
+        }
+
+        const confirmRow = new ActionRowBuilder().addComponents(
+          new ButtonBuilder()
+            .setCustomId(`confirmar_${accion}_${targetId}_0`)
+            .setLabel(`Confirmar (${coste} tokens)`)
+            .setStyle(ButtonStyle.Danger)
+        );
+
+        await interaction.followUp({ content: `Desconectar a ${miembro.user.tag} cuesta ${coste} tokens. ¿Confirmas?`, components: [confirmRow], flags: 64 });
       }
-
-      const resultado = await aplicarEfecto(miembro, accion, tiempo);
-      if (resultado.error) {
-        await interaction.followUp({ content: `❌ ${resultado.error}`, ephemeral: true });
-        return;
-      }
-
-      db[userId] -= coste;
-      saveDB();
-
-      await logAccion(client, interaction.user.tag, accion, miembro.user.tag, tiempo, coste);
-
-      await interaction.followUp({ content: `✅ Aplicaste **${accion}** a ${miembro.user.tag} durante ${tiempo || 0}s. Te quedan ${db[userId].toFixed(1)} tokens.`, ephemeral: true });
       return;
     }
 
@@ -297,7 +281,7 @@ if (interaction.isButton()) {
       if (!db[objetivoId]) db[objetivoId] = 0;
 
       if (db[userId] < coste) {
-        await interaction.followUp({ content: `❌ No tienes suficientes tokens para confirmar.`, ephemeral: true });
+        await interaction.reply({ content: `❌ No tienes suficientes tokens para confirmar.`, flags: 64 });
         return;
       }
 
@@ -319,7 +303,7 @@ if (interaction.isButton()) {
 
       saveDB();
       await logAccion(client, interaction.user.tag, `Robo ${exito ? 'exitoso' : 'fallido'}`, miembro.user.tag, 0, coste);
-      await interaction.followUp({ content: resultadoMsg, ephemeral: true });
+      await interaction.reply({ content: resultadoMsg, flags: 64 });
       return;
     }
   }
@@ -331,26 +315,26 @@ if (interaction.isButton()) {
     const tiempo = parseInt(interaction.fields.getTextInputValue('tiempo'));
     const miembro = interaction.guild.members.cache.get(targetId);
     if (!miembro || isNaN(tiempo) || tiempo <= 0) {
-      await interaction.reply({ content: '❌ Datos inválidos.', ephemeral: true });
+      await interaction.reply({ content: '❌ Datos inválidos.', flags: 64 });
       return;
     }
 
     const coste = tiempo * 0.1;
     if (db[userId] < coste) {
-      await interaction.reply({ content: `❌ No tienes suficientes tokens. Necesitas ${coste.toFixed(1)}.`, ephemeral: true });
+      await interaction.reply({ content: `❌ No tienes suficientes tokens. Necesitas ${coste.toFixed(1)}.`, flags: 64 });
       return;
     }
 
     const resultado = await aplicarEfecto(miembro, accion, tiempo);
     if (resultado.error) {
-      await interaction.reply({ content: `❌ ${resultado.error}`, ephemeral: true });
+      await interaction.reply({ content: `❌ ${resultado.error}`, flags: 64 });
       return;
     }
 
     db[userId] -= coste;
     saveDB();
     await logAccion(client, interaction.user.tag, accion, miembro.user.tag, tiempo, coste);
-    await interaction.reply({ content: `✅ Aplicaste **${accion}** a ${miembro.user.tag} durante ${tiempo}s. Te quedan ${db[userId].toFixed(1)} tokens.`, ephemeral: true });
+    await interaction.reply({ content: `✅ Aplicaste **${accion}** a ${miembro.user.tag} durante ${tiempo}s. Te quedan ${db[userId].toFixed(1)} tokens.`, flags: 64 });
   }
 });
 
