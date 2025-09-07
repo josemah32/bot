@@ -334,42 +334,53 @@ client.on('interactionCreate', async interaction => {
     }
 
     // ------------------- CONFIRMAR ROBO -------------------
-    if (interaction.customId) {
-      let data;
-      try { data = JSON.parse(interaction.customId); } catch { return; }
-      if (data.type !== 'robo') return;
+if (interaction.customId) {
+  let data;
+  try { data = JSON.parse(interaction.customId); } catch { return; }
+  if (data.type !== 'robo') return;
 
-      const { objetivoId, cantidad, coste, probabilidad } = data;
-      if (!db[userId]) db[userId] = 0;
-      if (!db[objetivoId]) db[objetivoId] = 0;
+  const { objetivoId, cantidad, coste, probabilidad } = data;
+  if (!db[userId]) db[userId] = 0;
+  if (!db[objetivoId]) db[objetivoId] = 0;
 
-      if (db[userId] < coste) {
-        await interaction.reply({ content: `❌ No tienes suficientes tokens para confirmar.`, flags: 64 });
-        return;
-      }
-
-      const miembro = await interaction.guild.members.fetch(objetivoId).catch(() => null);
-      if (!miembro) return;
-
-      db[userId] -= coste;
-      const exito = Math.random() * 100 < probabilidad;
-
-      let resultadoMsg = '';
-      if (exito) {
-        const robado = Math.min(cantidad, db[objetivoId]);
-        db[objetivoId] -= robado;
-        db[userId] += robado;
-        resultadoMsg = `✅ Has robado **${robado} tokens** de ${miembro.user.tag}. Te quedan ${db[userId].toFixed(1)} tokens.`;
-      } else {
-        resultadoMsg = `❌ Fallaste el robo a ${miembro.user.tag}. Perdistes ${coste} tokens. Te quedan ${db[userId].toFixed(1)} tokens.`;
-      }
-
-      saveDB();
-      await logAccion(client, interaction.user.tag, `Robo ${exito ? 'exitoso' : 'fallido'}`, miembro.user.tag, 0, coste);
-      await interaction.reply({ content: resultadoMsg, flags: 64 });
-      return;
-    }
+  if (db[userId] < coste) {
+    await interaction.reply({ content: `❌ No tienes suficientes tokens para confirmar.`, flags: 64 });
+    return;
   }
+
+  const miembro = await interaction.guild.members.fetch(objetivoId).catch(() => null);
+  if (!miembro) return;
+
+  db[userId] -= coste;
+  const exito = Math.random() * 100 < probabilidad;
+
+  let resultadoMsg = '';
+  let mensajePublico = '';
+
+  if (exito) {
+    const robado = Math.min(cantidad, db[objetivoId]);
+    db[objetivoId] -= robado;
+    db[userId] += robado;
+
+    resultadoMsg = `✅ Has robado **${robado} tokens** de ${miembro.user.tag}. Te quedan ${db[userId].toFixed(1)} tokens.`;
+    mensajePublico = `💰 **${interaction.user.username}** ha robado **${robado} tokens** de **${miembro.user.username}**!`;
+  } else {
+    resultadoMsg = `❌ Fallaste el robo a ${miembro.user.tag}. Perdistes ${coste} tokens. Te quedan ${db[userId].toFixed(1)} tokens.`;
+    mensajePublico = `❌ **${interaction.user.username}** ha fallado el robo a **${miembro.user.username}** y perdió ${coste} tokens.`;
+  }
+
+  saveDB();
+
+  // Enviar log embed al canal de logs privado
+  await logAccion(client, interaction.user.tag, `Robo ${exito ? 'exitoso' : 'fallido'}`, miembro.user.tag, 0, coste);
+
+  // Enviar mensaje público en el canal de la interacción
+  await interaction.channel.send(mensajePublico);
+
+  // Responder al usuario que ejecutó la acción (ephemeral)
+  await interaction.reply({ content: resultadoMsg, flags: 64 });
+  return;
+}
 
   // ------------------- MODALES -------------------
   if (interaction.isModalSubmit()) {
