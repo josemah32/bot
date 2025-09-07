@@ -291,10 +291,11 @@ client.on('interactionCreate', async interaction => {
   }
 
   // ------------------- BOTONES -------------------
-  if (interaction.isButton()) {
+// ------------------- BOTONES -------------------
+if (interaction.isButton()) {
   const userId = interaction.user.id;
 
-  // ------------------- ACCIONES ADMIN -------------------
+  // ----- ADMIN ACCIONES -----
   if (interaction.customId.startsWith('accion_')) {
     const [_, accion, targetId] = interaction.customId.split('_');
     const miembro = interaction.guild.members.cache.get(targetId);
@@ -337,11 +338,9 @@ client.on('interactionCreate', async interaction => {
     return;
   }
 
-  // ------------------- CONFIRMAR ROBO -------------------
+  // ----- ROBO -----
   let data;
-  try {
-    data = JSON.parse(interaction.customId);
-  } catch { data = null; }
+  try { data = JSON.parse(interaction.customId); } catch { data = null; }
 
   if (data && data.type === 'robo') {
     const { objetivoId, cantidad, coste, probabilidad } = data;
@@ -359,9 +358,7 @@ client.on('interactionCreate', async interaction => {
     db[userId] -= coste;
     const exito = Math.random() * 100 < probabilidad;
 
-    let resultadoMsg = '';
-    let mensajePublico = '';
-
+    let resultadoMsg, mensajePublico;
     if (exito) {
       const robado = Math.min(cantidad, db[objetivoId]);
       db[objetivoId] -= robado;
@@ -370,46 +367,15 @@ client.on('interactionCreate', async interaction => {
       resultadoMsg = `✅ Has robado **${robado} tokens** de ${miembro.user.tag}. Te quedan ${db[userId].toFixed(1)} tokens.`;
       mensajePublico = `💰 **${interaction.user.username}** ha robado **${robado} tokens** de **${miembro.user.username}**!`;
     } else {
-      resultadoMsg = `❌ Fallaste el robo a ${miembro.user.tag}. Perdistes ${coste} tokens. Te quedan ${db[userId].toFixed(1)} tokens.`;
-      mensajePublico = `❌ **${interaction.user.username}** ha fallado el robo a **${miembro.user.username}** y perdió ${coste} tokens.`;
+      resultadoMsg = `❌ Fallaste el robo a ${miembro.user.tag}. Perdiste ${coste} tokens. Te quedan ${db[userId].toFixed(1)} tokens.`;
+      mensajePublico = `❌ **${interaction.user.username}** falló el robo a **${miembro.user.username}** y perdió ${coste} tokens.`;
     }
 
     saveDB();
     await logAccion(client, interaction.user.tag, `Robo ${exito ? 'exitoso' : 'fallido'}`, miembro.user.tag, 0, coste);
     await interaction.channel.send(mensajePublico);
     await interaction.reply({ content: resultadoMsg, flags: 64 });
-    return;
   }
 }
-
-  // ------------------- MODALES -------------------
-  if (interaction.isModalSubmit()) {
-    const userId = interaction.user.id;
-    const [_, accion, targetId] = interaction.customId.split('_');
-    const tiempo = parseInt(interaction.fields.getTextInputValue('tiempo'));
-    const miembro = interaction.guild.members.cache.get(targetId);
-    if (!miembro || isNaN(tiempo) || tiempo <= 0) {
-      await interaction.reply({ content: '❌ Datos inválidos.', flags: 64 });
-      return;
-    }
-
-    const coste = tiempo * 0.1;
-    if (db[userId] < coste) {
-      await interaction.reply({ content: `❌ No tienes suficientes tokens. Necesitas ${coste.toFixed(1)}.`, flags: 64 });
-      return;
-    }
-
-    const resultado = await aplicarEfecto(miembro, accion, tiempo);
-    if (resultado.error) {
-      await interaction.reply({ content: `❌ ${resultado.error}`, flags: 64 });
-      return;
-    }
-
-    db[userId] -= coste;
-    saveDB();
-    await logAccion(client, interaction.user.tag, accion, miembro.user.tag, tiempo, coste);
-    await interaction.reply({ content: `✅ Aplicaste **${accion}** a ${miembro.user.tag} durante ${tiempo}s. Te quedan ${db[userId].toFixed(1)} tokens.`, flags: 64 });
-  }
-});
-
+  
 client.login(TOKEN);
