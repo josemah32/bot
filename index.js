@@ -375,7 +375,9 @@ if (interaction.isButton()) {
     await logAccion(client, interaction.user.tag, `Robo ${exito ? 'exitoso' : 'fallido'}`, miembro.user.tag, 0, coste);
     await interaction.channel.send(mensajePublico);
     await interaction.reply({ content: resultadoMsg, flags: 64 });
-  }
-}
+    }
+   });
+
+client.login(TOKEN);
   
 client.login(TOKEN);
