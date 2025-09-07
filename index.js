@@ -51,6 +51,19 @@ app.get('/login', (req, res) => {
 
 app.use(express.json());
 
+app.post('/set-bot-status', async (req, res) => {
+  const { type, name, status } = req.body;
+
+  try {
+    client.user.setActivity(name, { type }); // Cambia la actividad
+    client.user.setStatus(status); // Cambia el estado
+    res.sendStatus(200);
+  } catch (err) {
+    console.error(err);
+    res.sendStatus(500);
+  }
+});
+
 app.post('/send-embed', async (req, res) => {
   try {
     const { channelId, title, description, color, image, thumbnail, author, footer, fields } = req.body;
@@ -143,12 +156,10 @@ const client = new Client({
   ]
 });
 
-// Evento listo
 client.once('ready', () => {
   console.log(`Conectado como ${client.user.tag}`);
-
-app.post('/set-bot-status', async (req, res) => {
-  const { type, name, status } = req.body;
+  // Aquí NO va app.post ni nada más
+});
 
   try {
     client.user.setActivity(name, { type }); // Cambia la actividad
