@@ -46,7 +46,14 @@ app.listen(PORT, HOST, () => console.log(`Servidor corriendo en http://${HOST}:$
 
 let db = {};
 const DB_FILE = './db.json';
-if(fs.existsSync(DB_FILE)) db = JSON.parse(fs.readFileSync(DB_FILE));
+if(fs.existsSync(DB_FILE)) {
+  try {
+    db = JSON.parse(fs.readFileSync(DB_FILE));
+  } catch (err) {
+    console.error('Error leyendo db.json:', err);
+    db = {};
+  }
+}
 function saveDB(){ fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2)); }
 
 const client = new Client({
@@ -103,7 +110,7 @@ async function aplicarEfecto(member, efecto, duracion = 30) {
         return { success: true };
 
       case 'desconectar':
-        await member.voice.disconnect("Acción admin temporal");
+        await member.voice.disconnect();
         return { success: true };
 
       default:
@@ -171,8 +178,9 @@ client.on('interactionCreate', async interaction => {
         return;
       }
 
-      await interaction.guild.members.fetch();
-      const miembrosVC = interaction.guild.members.cache.filter(m => m.voice.channel && m.id !== userId);
+      const miembrosVC = (await interaction.guild.members.fetch())
+        .filter(m => m.voice.channel && m.id !== userId);
+
       if (!miembrosVC.size) {
         await interaction.reply({ content: '❌ No hay miembros en canales de voz.', flags: 64 });
         return;
@@ -200,7 +208,7 @@ client.on('interactionCreate', async interaction => {
       if (!db[objetivo.id]) db[objetivo.id] = 0;
 
       const coste = Math.ceil(cantidad * 0.5);
-      let probabilidad = Math.max(10, 70 - cantidad * 2);
+      const probabilidad = Math.max(10, 70 - cantidad * 2);
       if (db[userId] < coste) {
         await interaction.reply({ content: `❌ Necesitas al menos ${coste} tokens para intentar el robo.`, flags: 64 });
         return;
@@ -251,8 +259,6 @@ client.on('interactionCreate', async interaction => {
   if (interaction.isButton()) {
     await interaction.deferUpdate();
 
-    const userId = interaction.user.id;
-
     // ------------------- ADMIN ACCIONES -------------------
     if (interaction.customId.startsWith('accion_')) {
       const [_, accion, targetId] = interaction.customId.split('_');
@@ -296,10 +302,9 @@ client.on('interactionCreate', async interaction => {
       const [_, accion, targetId, tiempoStr] = interaction.customId.split('_');
       const tiempo = parseInt(tiempoStr) || 0;
       const miembro = interaction.guild.members.cache.get(targetId);
-
       if (!miembro) return;
 
-      let coste = accion === 'desconectar' ? 1 : tiempo * 0.1;
+      const coste = accion === 'desconectar' ? 1 : tiempo * 0.1;
       if (db[userId] < coste) {
         await interaction.followUp({ content: `❌ No tienes suficientes tokens. Necesitas ${coste.toFixed(1)}.`, ephemeral: true });
         return;
@@ -360,6 +365,7 @@ client.on('interactionCreate', async interaction => {
 
   // ------------------- MODALES -------------------
   if (interaction.isModalSubmit()) {
+    const userId = interaction.user.id;
     const [_, accion, targetId] = interaction.customId.split('_');
     const tiempo = parseInt(interaction.fields.getTextInputValue('tiempo'));
     const miembro = interaction.guild.members.cache.get(targetId);
