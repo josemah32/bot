@@ -32,28 +32,23 @@ const HOST = '0.0.0.0';
 const path = require('path');
 
 // Servir archivos estáticos desde la carpeta public
+const app = express();
+const PORT = process.env.PORT || 3000;
+const HOST = '0.0.0.0';
+
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.json());
-// Ruta principal (opcional, redirige a index.html)
-app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
-});
 
+app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
+app.get('/login', (req, res) => res.sendFile(path.join(__dirname, 'public', 'login.html')));
 app.get('/admin', (req, res) => {
-  const pass = req.query.pass;
-  if(pass !== ADMIN_PASSWORD) return res.status(403).send('❌ Acceso denegado');
-  res.sendFile(path.join(__dirname, 'public', 'admin.html'));
+    if(req.query.pass !== ADMIN_PASSWORD) return res.status(403).send('❌ Acceso denegado');
+    res.sendFile(path.join(__dirname, 'public', 'admin.html'));
 });
-
-app.get('/login', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'login.html'));
-});
-
-app.use(express.json());
 
 app.post('/set-bot-status', async (req, res) => {
-    const { type, name, status } = req.body;
     try {
+        const { type, name, status } = req.body;
         client.user.setActivity(name, { type });
         client.user.setStatus(status);
         res.sendStatus(200);
@@ -62,7 +57,6 @@ app.post('/set-bot-status', async (req, res) => {
         res.sendStatus(500);
     }
 });
-
 app.post('/send-embed', async (req, res) => {
   try {
     const { channelId, title, description, color, image, thumbnail, author, footer, fields } = req.body;
@@ -122,10 +116,6 @@ app.post('/send-tokens', async (req, res) => {
   }
 });
 
-app.listen(PORT, HOST, () => {
-  console.log(`Servidor corriendo en http://${HOST}:${PORT}`);
-})
-
 app.post('/set-bot-status', async (req, res) => {
   const { type, name, status } = req.body;
 
@@ -139,20 +129,22 @@ app.post('/set-bot-status', async (req, res) => {
   }
 });
 
+app.listen(PORT, HOST, () => console.log(`Servidor corriendo en http://${HOST}:${PORT}`));
+
 ////////////////////////////////////////////BOT///////////////////////////////////////////////////////////
 
 let db = {};
 const DB_FILE = './db.json';
-if (fs.existsSync(DB_FILE)) db = JSON.parse(fs.readFileSync(DB_FILE));
-function saveDB() { fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2)); }
+if(fs.existsSync(DB_FILE)) db = JSON.parse(fs.readFileSync(DB_FILE));
+function saveDB(){ fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2)); }
 
 const client = new Client({
-  intents: [
-    GatewayIntentBits.Guilds,
-    GatewayIntentBits.GuildMessages,
-    GatewayIntentBits.GuildVoiceStates,
-    GatewayIntentBits.GuildMembers
-  ]
+    intents: [
+        GatewayIntentBits.Guilds,
+        GatewayIntentBits.GuildMessages,
+        GatewayIntentBits.GuildVoiceStates,
+        GatewayIntentBits.GuildMembers
+    ]
 });
 
 client.once('ready', () => {
