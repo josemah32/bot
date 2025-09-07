@@ -52,7 +52,6 @@ input { padding:10px; width:80%; border-radius:8px; border:1px solid #ccc; margi
   <h1>Admin abuse web</h1>
   <p>¿Será que esta página web funcionará algún día? Inténtalo ⬇️</p>
   <button onclick="showAdminLogin()">Acceder Admin</button>
-  <button onclick="goToService()">Ir al Servicio</button>
 </div>
 
 <div class="container" id="adminSection">
@@ -66,7 +65,6 @@ input { padding:10px; width:80%; border-radius:8px; border:1px solid #ccc; margi
 
 <script>
 const ADMIN_PASSWORD = "germangey";
-const SERVICE_URL = "http://1.2.3.4:1234"; // Cambia aquí a tu IP y puerto
 
 function showAdminLogin() {
   document.getElementById('mainSection').style.display = 'none';
@@ -87,11 +85,6 @@ function checkAdmin() {
   } else {
     document.getElementById('error').style.display = 'block';
   }
-}
-
-// Función para redirigir al servicio
-function goToService() {
-  window.location.href = SERVICE_URL;
 }
 </script>
 
