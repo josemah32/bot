@@ -334,7 +334,7 @@ client.on('interactionCreate', async interaction => {
     }
 
     // ------------------- CONFIRMAR ROBO -------------------
-if (interaction.customId) {
+  if (interaction.customId) {
   let data;
   try { data = JSON.parse(interaction.customId); } catch { return; }
   if (data.type !== 'robo') return;
@@ -371,13 +371,8 @@ if (interaction.customId) {
 
   saveDB();
 
-  // Enviar log embed al canal de logs privado
   await logAccion(client, interaction.user.tag, `Robo ${exito ? 'exitoso' : 'fallido'}`, miembro.user.tag, 0, coste);
-
-  // Enviar mensaje público en el canal de la interacción
   await interaction.channel.send(mensajePublico);
-
-  // Responder al usuario que ejecutó la acción (ephemeral)
   await interaction.reply({ content: resultadoMsg, flags: 64 });
   return;
 }
