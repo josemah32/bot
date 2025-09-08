@@ -179,17 +179,6 @@ client.on('error', console.error);
 
 client.once('ready', () => console.log(`Conectado como ${client.user.tag}`));
 
-client.on('messageCreate', async message => {
-  if (message.author.bot) return;
-
-  await supabase.rpc('increment_tokens', {
-    uid: message.author.id, // ID de Discord como string
-    delta: 1               // siempre 1 token entero por mensaje
-  });
-
-  console.log(`[TOKENS] ${message.author.tag} +1`);
-});
-
 // -------------------- Comandos --------------------
 const commands = [
   new SlashCommandBuilder().setName('admin').setDescription('Usa tus tokens para acciones').toJSON(),
