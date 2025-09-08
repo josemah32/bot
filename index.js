@@ -207,15 +207,15 @@ const commands = [
     .toJSON(),
   new SlashCommandBuilder().setName('info').setDescription('Muestra info del sistema').toJSON(),
   new SlashCommandBuilder().setName('web').setDescription('Te da el link de la web del bot').toJSON(),
-  const slotsCommand = new SlashCommandBuilder()
-  .setName('slots')
-  .setDescription('Juega a las tragamonedas y gana tokens')
-  .addIntegerOption(option =>
-    option.setName('apuesta')
-      .setDescription('Cantidad de tokens a apostar')
-      .setRequired(true)
-      .setMinValue(1)
-  ).toJSON();
+  new SlashCommandBuilder()
+    .setName('slots')
+    .setDescription('Juega a las tragamonedas y gana tokens')
+    .addIntegerOption(option =>
+      option.setName('apuesta')
+        .setDescription('Cantidad de tokens a apostar')
+        .setRequired(true)
+        .setMinValue(1)
+    ).toJSON()
 ];
 
 const rest = new REST({ version: '10' }).setToken(TOKEN);
