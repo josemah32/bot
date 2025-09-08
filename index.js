@@ -81,16 +81,9 @@ async function setTokens(userId, value) {
 }
 
 // -------------------- Express --------------------
-const fs = require("fs");
-const https = require("https");
 const app = express();
 const PORT = process.env.PORT || 3000;
 const HOST = '0.0.0.0';
-
-const options = {
-  key: fs.readFileSync("/etc/secrets/origin.key"),   // clave privada
-  cert: fs.readFileSync("/etc/secrets/origin.pem"),  // certificado
-}
 
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.json());
@@ -173,9 +166,7 @@ app.post('/set-bot-status', async (req, res) => {
   }
 });
 
-https.createServer(options, app).listen(PORT, HOST, () => {
-  console.log(`Servidor HTTPS corriendo en https://${HOST}:${PORT}`);
-});
+app.listen(PORT, HOST, () => console.log(`Servidor corriendo en http://${HOST}:${PORT}`));
 
 // -------------------- Discord Bot --------------------
 
