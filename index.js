@@ -24,7 +24,6 @@ const CLIENT_ID = process.env.CLIENT_ID;
 const GUILD_ID = process.env.GUILD_ID;
 const LOG_CHANNEL_ID = process.env.LOG_CHANNEL_ID;
 const ADMIN_PASSWORD = "germangey";
-const ROBO_CHANNEL_ID = "1375490054260129812";
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
@@ -396,77 +395,40 @@ client.on('interactionCreate', async interaction => {
         } else return await safeReply(interaction, { content: `✅ ${miembro.user.tag} ha sido ${accion} (-${coste} tokens).`, flags: EPHEMERAL });
       }
 
-      // -------------------- ROBO --------------------
+      // ROBO
       let data;
-      try {
-        data = JSON.parse(custom);
-      } catch (err) {
-        data = null;
-      }
-
+      try { data = JSON.parse(custom); } catch { data = null; }
       if (data && data.type === 'robo') {
         const { objetivoId, cantidad, coste, probabilidad } = data;
         const tokensUser = await getTokens(userId);
-
-        if (tokensUser < coste) {
-          return await safeReply(interaction, { 
-            content: '❌ No tienes suficientes tokens.', 
-            flags: EPHEMERAL 
-          });
-        }
+        if (tokensUser < coste) return await safeReply(interaction, { content: '❌ No tienes suficientes tokens.', flags: EPHEMERAL });
 
         const objetivoTokens = await getTokens(objetivoId);
-        const miembro = await interaction.guild.members.fetch(objetivoId).catch(() => null);
-
-        if (!miembro) {
-          return await safeReply(interaction, { 
-            content: '❌ Usuario no encontrado.', 
-            flags: EPHEMERAL 
-          });
-        }
+        const miembro = await interaction.guild.members.fetch(objetivoId).catch(()=>null);
+        if (!miembro) return await safeReply(interaction, { content: '❌ Usuario no encontrado.', flags: EPHEMERAL });
 
         await changeTokens(userId, -coste);
 
         const exito = Math.random() * 100 < probabilidad;
-        let resultadoMsg;
-
+        let resultadoMsg, mensajePublico;
         if (exito) {
           const robado = Math.min(cantidad, objetivoTokens);
-
           if (robado > 0) {
             await changeTokens(objetivoId, -robado);
             await changeTokens(userId, robado);
           }
-
           resultadoMsg = `✅ Has robado **${robado} tokens** de ${miembro.user.tag}. Te quedan ${await getTokens(userId)} tokens.`;
-
-          // 📢 Anunciar SOLO si el robo es exitoso
-          const canalRobo = await client.channels.fetch(ROBO_CHANNEL_ID).catch(() => null);
-
-          if (canalRobo) {
-            await canalRobo.send(
-              `💰 **${interaction.user.username}** ha robado **${robado} tokens** de **${miembro.user.username}**!`
-            );
-          }
+          mensajePublico = `💰 **${interaction.user.username}** ha robado **${robado} tokens** de **${miembro.user.username}**!`;
         } else {
           resultadoMsg = `❌ Fallaste el robo a ${miembro.user.tag}. Perdiste ${coste} tokens. Te quedan ${await getTokens(userId)} tokens.`;
+          mensajePublico = `❌ **${interaction.user.username}** falló el robo a **${miembro.user.username}** y perdió ${coste} tokens.`;
         }
 
-        await logAccion(
-          client, 
-          interaction.user.tag, 
-          `Robo ${exito ? 'exitoso' : 'fallido'}`, 
-          miembro.user.tag, 
-          0, 
-          coste
-        );
-
-        // 🔒 Mensaje SIEMPRE ephemeral para el usuario
-        return await safeReply(interaction, { 
-          content: resultadoMsg, 
-          flags: EPHEMERAL 
-        });
+        await logAccion(client, interaction.user.tag, `Robo ${exito ? 'exitoso' : 'fallido'}`, miembro.user.tag, 0, coste);
+        if (interaction.channel) await interaction.channel.send(mensajePublico);
+        return await safeReply(interaction, { content: resultadoMsg, flags: EPHEMERAL });
       }
+    }
 
     // MODALES
     if (interaction.isModalSubmit()) {
