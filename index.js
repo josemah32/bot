@@ -205,7 +205,7 @@ const commands = [
     .addUserOption(opt => opt.setName('objetivo').setDescription('Usuario a robar').setRequired(true))
     .addIntegerOption(opt => opt.setName('cantidad').setDescription('Cantidad de tokens').setRequired(true))
     .toJSON(),
-  new SlashCommandBuilder().setName('info').setDescription('Muestra info del sistema').toJSON()
+  new SlashCommandBuilder().setName('info').setDescription('Muestra info del sistema').toJSON(),
   new SlashCommandBuilder().setName('web').setDescription('Te da el link de la web del bot').toJSON()
 ];
 
