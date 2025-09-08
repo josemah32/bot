@@ -139,6 +139,22 @@ app.post('/send-tokens', async (req, res) => {
   }
 });
 
+app.get('/ranking', async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('users_tokens')
+      .select('user, tokens') // <-- usamos 'user' de la DB
+      .order('tokens', { ascending: false })
+      .limit(10); // Top 10
+
+    if (error) return res.status(500).json({ error: error.message });
+
+    res.json(data);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error interno' });
+  }
+});
 
 app.post('/set-bot-status', async (req, res) => {
   try {
