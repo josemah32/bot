@@ -73,6 +73,7 @@ hr { margin: 30px 0; }
     <button onclick="showForm('embed')">Crear Embed</button>
     <button onclick="showForm('tokens')">Enviar Mensaje de Tokens</button>
     <button onclick="showForm('status')">Cambiar Estado del Bot</button>
+    <button onclick="showForm('invincible')">Activar/Desactivar Invencibilidad</button>
   </div>
 
   <!-- FORMULARIO CREAR EMBED -->
@@ -140,6 +141,14 @@ hr { margin: 30px 0; }
     <button onclick="backToMenu()" style="background:#6c757d;">⬅ Volver al menú</button>
   </div>
 
+  <!-- FORMULARIO INVENCIBILIDAD -->
+  <div id="invincibleFormContainer" style="display:none; width:100%;">
+    <h2>Invencibilidad de usuario</h2>
+    <input type="text" id="invUserId" placeholder="ID del usuario a proteger">
+    <button type="button" onclick="toggleInvincible()">Activar/Desactivar</button>
+    <button onclick="backToMenu()" style="background:#6c757d;">⬅ Volver al menú</button>
+  </div>
+
 </div>
 
 <script>
@@ -148,10 +157,12 @@ function showForm(form) {
   document.getElementById('embedFormContainer').style.display = 'none';
   document.getElementById('tokensFormContainer').style.display = 'none';
   document.getElementById('statusFormContainer').style.display = 'none';
+  document.getElementById('invincibleFormContainer').style.display = 'none';
 
   if(form === 'embed') document.getElementById('embedFormContainer').style.display = 'block';
   if(form === 'tokens') document.getElementById('tokensFormContainer').style.display = 'block';
   if(form === 'status') document.getElementById('statusFormContainer').style.display = 'block';
+  if(form === 'invincible') document.getElementById('invincibleFormContainer').style.display = 'block';
 }
 
 function backToMenu() {
@@ -159,6 +170,7 @@ function backToMenu() {
   document.getElementById('embedFormContainer').style.display = 'none';
   document.getElementById('tokensFormContainer').style.display = 'none';
   document.getElementById('statusFormContainer').style.display = 'none';
+  document.getElementById('invincibleFormContainer').style.display = 'none';
 }
 
 function addField() {
@@ -236,6 +248,21 @@ document.getElementById('statusForm').addEventListener('submit', async e => {
   if(res.ok) alert('Estado del bot actualizado!');
   else alert('Error al actualizar el estado');
 });
+
+// Invencibilidad
+async function toggleInvincible() {
+  const userId = document.getElementById('invUserId').value;
+  if (!userId) return alert('Ingresa un ID de usuario');
+
+  const res = await fetch('/toggle-invincible', {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ userId })
+  });
+
+  const data = await res.json();
+  alert(data.message);
+}
 </script>
 
 </body>
