@@ -298,17 +298,20 @@ client.on('interactionCreate', async interaction => {
       }
 
       if (interaction.commandName === 'slots') {
-            const apuesta = interaction.options.getInteger('apuesta');
-            const resultado = await jugarSlots(userId, apuesta);
+          const apuesta = interaction.options.getInteger('apuesta');
+          const resultado = await jugarSlots(userId, apuesta);
 
-        if (resultado.error) return await interaction.reply({ content: resultado.error, flags: EPHEMERAL });
+      if (resultado.error) return await interaction.reply({ content: resultado.error, flags: EPHEMERAL });
 
         const mensaje = `🎰 ${resultado.tirada}\n` +
-                       (resultado.ganancia > 0 
-                       ? `✅ Ganaste ${resultado.ganancia} tokens! Ahora tienes ${resultado.totalTokens} tokens.` 
-                       : `❌ Perdiste ${apuesta} tokens. Ahora tienes ${resultado.totalTokens} tokens.`);
+                   (resultado.ganancia > 0 
+                     ? `✅ Ganaste ${resultado.ganancia} tokens! Ahora tienes ${resultado.totalTokens} tokens.` 
+                     : `❌ Perdiste ${apuesta} tokens. Ahora tienes ${resultado.totalTokens} tokens.`);
 
         await interaction.reply({ content: mensaje, flags: EPHEMERAL });
+
+        // Log
+        await logSlots(client, interaction.user.tag, apuesta, resultado.tirada, resultado.ganancia - apuesta, resultado.totalTokens);
       }
       
       if (interaction.commandName === 'robar') {
@@ -522,6 +525,30 @@ client.on('interactionCreate', async interaction => {
 });
 
 // -------------------- Funciones auxiliares --------------------
+
+async function logSlots(client, usuario, apuesta, tirada, ganancia, totalTokens) {
+  try {
+    const canalLogs = await client.channels.fetch(LOG_CHANNEL_ID).catch(() => null);
+    if (!canalLogs) return;
+
+    const embed = new EmbedBuilder()
+      .setTitle('🎰 Slots')
+      .setColor(0x00ff99)
+      .addFields(
+        { name: 'Usuario', value: usuario, inline: true },
+        { name: 'Apuesta', value: `${apuesta}`, inline: true },
+        { name: 'Tirada', value: tirada, inline: false },
+        { name: 'Ganancia/Pérdida', value: `${ganancia}`, inline: true },
+        { name: 'Tokens Totales', value: `${totalTokens}`, inline: true }
+      )
+      .setTimestamp();
+
+    await canalLogs.send({ embeds: [embed] });
+  } catch (err) {
+    console.error('Error logSlots:', err);
+  }
+}
+
 async function logAccion(client, usuario, accion, target, duracion, coste) {
   try {
     const canalLogs = await client.channels.fetch(LOG_CHANNEL_ID).catch(()=>null);
