@@ -18,6 +18,7 @@ const {
 } = require('discord.js');
 const { createClient } = require('@supabase/supabase-js');
 const { ActivityType } = require('discord.js');
+const invincibleUsers = new Set(); // usuarios invencibles en memoria
 
 const TOKEN = process.env.DISCORD_TOKEN;
 const CLIENT_ID = process.env.CLIENT_ID;
@@ -178,6 +179,24 @@ app.post('/set-bot-status', async (req, res) => {
     res.status(200).send('✅ Estado del bot actualizado');
   } catch (err) {
     console.error('Error al cambiar estado:', err);
+    res.status(500).send('❌ Error interno');
+  }
+});
+
+app.post('/toggle-invincible', async (req, res) => {
+  try {
+    const { userId } = req.body;
+    if (!userId) return res.status(400).send('❌ Faltó userId');
+
+    if (invincibleUsers.has(userId)) {
+      invincibleUsers.delete(userId);
+      return res.send({ status: 'off', message: 'Invencibilidad desactivada' });
+    } else {
+      invincibleUsers.add(userId);
+      return res.send({ status: 'on', message: 'Invencibilidad activada' });
+    }
+  } catch (err) {
+    console.error(err);
     res.status(500).send('❌ Error interno');
   }
 });
@@ -459,6 +478,10 @@ client.on('interactionCreate', async interaction => {
         const { objetivoId, cantidad, coste, probabilidad } = data;
         const tokensUser = await getTokens(userId);
         if (tokensUser < coste) return await safeReply(interaction, { content: '❌ No tienes suficientes tokens.', flags: EPHEMERAL });
+
+        if (invincibleUsers.has(objetivoId)) {
+        return await safeReply(interaction, { content: '❌ Este usuario está protegido, no se le pueden robar tokens.', flags: EPHEMERAL });
+        }
 
         const objetivoTokens = await getTokens(objetivoId);
         const miembro = await interaction.guild.members.fetch(objetivoId).catch(()=>null);
