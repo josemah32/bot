@@ -24,6 +24,7 @@ const CLIENT_ID = process.env.CLIENT_ID;
 const GUILD_ID = process.env.GUILD_ID;
 const LOG_CHANNEL_ID = process.env.LOG_CHANNEL_ID;
 const ADMIN_PASSWORD = "germangey";
+const ROBO_CHANNEL_ID = "1375490054260129812";
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
