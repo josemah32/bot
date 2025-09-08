@@ -322,7 +322,21 @@ client.on('interactionCreate', async interaction => {
     // -------------------- Botones --------------------
     if (interaction.isButton()) {
       const custom = interaction.customId;
+      
+      if (interaction.isButton() && interaction.customId.startsWith('claim_tokens_')) {
+        const cantidad = Number(interaction.customId.split('_')[2]);
+        if (isNaN(cantidad)) return await safeReply(interaction, { content: '❌ Error con la cantidad de tokens.', flags: EPHEMERAL });
 
+        await changeTokens(interaction.user.id, cantidad);
+        const total = await getTokens(interaction.user.id);
+
+         await interaction.update({
+        content: `✅ ${interaction.user.username} ha reclamado ${cantidad} tokens! Ahora tienes ${total} tokens.`,
+        components: []
+       });
+      return;
+    }
+      
       // accion_xxx -> mostrar modal o confirmar
       if (custom.startsWith('accion_')) {
         const [_, accion, targetId] = custom.split('_');
