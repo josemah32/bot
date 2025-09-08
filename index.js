@@ -206,7 +206,16 @@ const commands = [
     .addIntegerOption(opt => opt.setName('cantidad').setDescription('Cantidad de tokens').setRequired(true))
     .toJSON(),
   new SlashCommandBuilder().setName('info').setDescription('Muestra info del sistema').toJSON(),
-  new SlashCommandBuilder().setName('web').setDescription('Te da el link de la web del bot').toJSON()
+  new SlashCommandBuilder().setName('web').setDescription('Te da el link de la web del bot').toJSON(),
+  const slotsCommand = new SlashCommandBuilder()
+  .setName('slots')
+  .setDescription('Juega a las tragamonedas y gana tokens')
+  .addIntegerOption(option =>
+    option.setName('apuesta')
+      .setDescription('Cantidad de tokens a apostar')
+      .setRequired(true)
+      .setMinValue(1)
+  ).toJSON();
 ];
 
 const rest = new REST({ version: '10' }).setToken(TOKEN);
@@ -313,6 +322,34 @@ client.on('interactionCreate', async interaction => {
       }
     }
 
+    // -------------------- Casino --------------------
+
+    async function jugarSlots(userId, apuesta) {
+     const tokensUser = await getTokens(userId);
+     if (tokensUser < apuesta) return { error: '❌ No tienes suficientes tokens.' };
+
+     await changeTokens(userId, -apuesta);
+
+     const simbolos = ['🍒', '🍋', '🍉', '💎', '⭐', '7️⃣'];
+     const tirada = [
+          simbolos[Math.floor(Math.random() * simbolos.length)],
+          simbolos[Math.floor(Math.random() * simbolos.length)],
+          simbolos[Math.floor(Math.random() * simbolos.length)]
+       ];
+
+    let ganancia = 0;
+    if (tirada[0] === tirada[1] && tirada[1] === tirada[2]) ganancia = apuesta * 10;
+    else if (tirada[0] === tirada[1] || tirada[1] === tirada[2] || tirada[0] === tirada[2]) ganancia = apuesta * 2;
+
+    if (ganancia > 0) await changeTokens(userId, ganancia);
+
+    return {
+      tirada: tirada.join(' | '),
+      ganancia,
+      totalTokens: await getTokens(userId)
+     };
+   }
+    
     // -------------------- Selecciones --------------------
     if (interaction.isStringSelectMenu() && interaction.customId === 'select_member') {
       const targetId = interaction.values[0];
@@ -395,6 +432,20 @@ client.on('interactionCreate', async interaction => {
         } else return await safeReply(interaction, { content: `✅ ${miembro.user.tag} ha sido ${accion} (-${coste} tokens).`, flags: EPHEMERAL });
       }
 
+        if (interaction.commandName === 'slots') {
+            const apuesta = interaction.options.getInteger('apuesta');
+            const resultado = await jugarSlots(userId, apuesta);
+
+        if (resultado.error) return await interaction.reply({ content: resultado.error, flags: EPHEMERAL });
+
+        const mensaje = `🎰 ${resultado.tirada}\n` +
+                       (resultado.ganancia > 0 
+                       ? `✅ Ganaste ${resultado.ganancia} tokens! Ahora tienes ${resultado.totalTokens} tokens.` 
+                       : `❌ Perdiste ${apuesta} tokens. Ahora tienes ${resultado.totalTokens} tokens.`);
+
+        await interaction.reply({ content: mensaje, flags: EPHEMERAL });
+      }
+      
       // ROBO
       let data;
       try { data = JSON.parse(custom); } catch { data = null; }
