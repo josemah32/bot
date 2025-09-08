@@ -206,6 +206,7 @@ const commands = [
     .addIntegerOption(opt => opt.setName('cantidad').setDescription('Cantidad de tokens').setRequired(true))
     .toJSON(),
   new SlashCommandBuilder().setName('info').setDescription('Muestra info del sistema').toJSON()
+  new SlashCommandBuilder().setName('web').setDescription('Te da el link de la web del bot').toJSON()
 ];
 
 const rest = new REST({ version: '10' }).setToken(TOKEN);
@@ -248,6 +249,13 @@ client.on('interactionCreate', async interaction => {
         return await safeReply(interaction, { content: `💰 Tienes ${t} tokens.`, flags: EPHEMERAL });
       }
 
+      if (interaction.commandName === 'web') {
+        return await safeReply(interaction, {
+          content: '🌐 Aquí está el link de la web: https://bot-bnzz.onrender.com/',
+          flags: EPHEMERAL
+        });
+      }
+      
       if (interaction.commandName === 'info') {
         return await safeReply(interaction, {
           content: `
