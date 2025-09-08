@@ -15,8 +15,9 @@ body {
   min-height:100vh;
   display:flex;
   justify-content:center;
-  align-items:center;
+  align-items:flex-start;
   background: linear-gradient(to right, #74ebd5, #ACB6E5);
+  padding-top:50px;
 }
 .container {
   background:white;
@@ -26,6 +27,7 @@ body {
   width:90%;
   max-width:500px;
   text-align:center;
+  margin-bottom: 20px;
 }
 h1, h2 { margin-bottom:20px; }
 button { 
@@ -42,6 +44,8 @@ button:hover { background:#0056b3; }
 input { padding:10px; width:80%; border-radius:8px; border:1px solid #ccc; margin-bottom:15px; }
 #adminSection { display:none; }
 #error { color:red; display:none; margin-top:10px; }
+table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+th, td { padding: 10px; border-bottom: 1px solid #ccc; text-align: left; }
 </style>
 </head>
 <body>
@@ -52,6 +56,17 @@ input { padding:10px; width:80%; border-radius:8px; border:1px solid #ccc; margi
   <h1>Admin abuse web</h1>
   <p>¿Será que esta página web funcionará algún día? Inténtalo ⬇️</p>
   <button onclick="showAdminLogin()">Acceder Admin</button>
+
+  <!-- Contenedor de ranking -->
+  <h2>🏆 Top 10 Tokens</h2>
+  <table>
+    <thead>
+      <tr><th>Usuario</th><th>Tokens</th></tr>
+    </thead>
+    <tbody id="rankingBody">
+      <tr><td colspan="2">Cargando...</td></tr>
+    </tbody>
+  </table>
 </div>
 
 <div class="container" id="adminSection">
@@ -86,6 +101,27 @@ function checkAdmin() {
     document.getElementById('error').style.display = 'block';
   }
 }
+
+// Función para cargar ranking
+async function loadRanking() {
+  try {
+    const res = await fetch('/ranking');
+    const data = await res.json();
+    const tbody = document.getElementById('rankingBody');
+    tbody.innerHTML = '';
+    data.forEach((u, i) => {
+      const row = document.createElement('tr');
+      row.innerHTML = `<td>${i+1}. ${u.user}</td><td>${u.tokens}</td>`;
+      tbody.appendChild(row);
+    });
+  } catch (err) {
+    console.error(err);
+    document.getElementById('rankingBody').innerHTML = '<tr><td colspan="2">Error cargando ranking</td></tr>';
+  }
+}
+
+// Cargar ranking al abrir la página
+loadRanking();
 </script>
 
 </body>
