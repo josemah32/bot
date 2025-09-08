@@ -298,21 +298,24 @@ client.on('interactionCreate', async interaction => {
       }
 
       if (interaction.commandName === 'slots') {
-          const apuesta = interaction.options.getInteger('apuesta');
-          const resultado = await jugarSlots(userId, apuesta);
+        const apuesta = interaction.options.getInteger('apuesta');
+  
+  // Defer reply para ganar tiempo y evitar "Unknown interaction"
+        await interaction.deferReply({ ephemeral: true });
 
-      if (resultado.error) return await interaction.reply({ content: resultado.error, flags: EPHEMERAL });
+        const resultado = await jugarSlots(userId, apuesta);
+        if (resultado.error) return await interaction.editReply({ content: resultado.error });
 
         const mensaje = `🎰 ${resultado.tirada}\n` +
-                   (resultado.ganancia > 0 
-                     ? `✅ Ganaste ${resultado.ganancia} tokens! Ahora tienes ${resultado.totalTokens} tokens.` 
-                     : `❌ Perdiste ${apuesta} tokens. Ahora tienes ${resultado.totalTokens} tokens.`);
+            (resultado.ganancia > 0 
+            ? `✅ Ganaste ${resultado.ganancia} tokens! Ahora tienes ${resultado.totalTokens} tokens.` 
+            : `❌ Perdiste ${apuesta} tokens. Ahora tienes ${resultado.totalTokens} tokens.`);
 
-        await interaction.reply({ content: mensaje, flags: EPHEMERAL });
+        await interaction.editReply({ content: mensaje });
 
-        // Log
+          // Log
         await logSlots(client, interaction.user.tag, apuesta, resultado.tirada, resultado.ganancia - apuesta, resultado.totalTokens);
-      }
+        }
       
       if (interaction.commandName === 'robar') {
         const objetivo = interaction.options.getUser('objetivo');
