@@ -396,12 +396,12 @@ client.on('interactionCreate', async interaction => {
         } else return await safeReply(interaction, { content: `✅ ${miembro.user.tag} ha sido ${accion} (-${coste} tokens).`, flags: EPHEMERAL });
       }
 
-       // ROBO
+      // -------------------- ROBO --------------------
       let data;
-      try { 
-        data = JSON.parse(custom); 
-      } catch { 
-        data = null; 
+      try {
+        data = JSON.parse(custom);
+      } catch (err) {
+        data = null;
       }
 
       if (data && data.type === 'robo') {
@@ -441,7 +441,6 @@ client.on('interactionCreate', async interaction => {
           resultadoMsg = `✅ Has robado **${robado} tokens** de ${miembro.user.tag}. Te quedan ${await getTokens(userId)} tokens.`;
 
           // 📢 Anunciar SOLO si el robo es exitoso
-          const ROBO_CHANNEL_ID = "TU_CANAL_ID_AQUI"; // <-- pon aquí el ID de tu canal
           const canalRobo = await client.channels.fetch(ROBO_CHANNEL_ID).catch(() => null);
 
           if (canalRobo) {
